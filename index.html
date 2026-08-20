@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Year's Bingo</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎉</text></svg>">
+</head>
+<body>
+
+<div class="sparkles" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">🎉</span>
+    <div class="brand-fields">
+      <input id="cardTitle" class="title-input" maxlength="42" placeholder="2026 Bingo" aria-label="Card title">
+      <input id="cardSubtitle" class="subtitle-input" maxlength="60" placeholder="Add a subtitle…" aria-label="Card subtitle">
+    </div>
+  </div>
+
+  <div class="progress-block">
+    <div class="progress-line">
+      <strong id="progressText">0 of 25</strong>
+      <span class="sep">·</span>
+      <span id="bingoCount">No bingos yet</span>
+    </div>
+    <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+  </div>
+</header>
+
+<nav class="toolbar" aria-label="Card actions">
+  <button id="btnSuggestions" class="btn btn-primary">✨ Suggestions</button>
+  <button id="btnFill" class="btn">🎲 Fill empty tiles</button>
+  <div class="size-group" role="group" aria-label="Grid size">
+    <span class="size-label">Grid</span>
+    <button class="btn btn-size" data-size="3">3×3</button>
+    <button class="btn btn-size" data-size="4">4×4</button>
+    <button class="btn btn-size" data-size="5">5×5</button>
+  </div>
+  <span class="toolbar-spacer"></span>
+  <button id="btnExport" class="btn btn-gold">⬇︎ Download card PNG</button>
+  <button id="btnExportPhotos" class="btn">🖼 Photo collage PNG</button>
+  <button id="btnBackup" class="btn btn-quiet">Backup</button>
+  <button id="btnRestoreLabel" class="btn btn-quiet">Restore</button>
+  <input id="btnRestore" type="file" accept="application/json" hidden>
+  <button id="btnReset" class="btn btn-quiet btn-danger">Reset</button>
+</nav>
+
+<main>
+  <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
+  <p class="hint">Click a tile to edit it, add a photo, or mark it done. Drag a photo straight onto a tile to attach it.</p>
+</main>
+
+<!-- Suggestions drawer -->
+<aside id="suggestPanel" class="drawer" aria-hidden="true" aria-label="Tile suggestions">
+  <div class="drawer-head">
+    <h2>Suggestions</h2>
+    <button id="btnCloseSuggest" class="icon-btn" aria-label="Close suggestions">✕</button>
+  </div>
+  <input id="suggestSearch" class="search" type="search" placeholder="Search suggestions…" aria-label="Search suggestions">
+  <div id="suggestCats" class="chips" role="group" aria-label="Filter by category"></div>
+  <p class="drawer-note">Click any suggestion to drop it into the first empty tile.</p>
+  <div id="suggestList" class="suggest-list"></div>
+</aside>
+<div id="drawerScrim" class="scrim" hidden></div>
+
+<!-- Tile editor -->
+<div id="tileModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tileModalTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="tileModalTitle">Edit tile</h2>
+      <button id="btnCloseModal" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+
+    <label class="field">
+      <span>Goal</span>
+      <textarea id="tileText" rows="2" maxlength="90" placeholder="What do you want to do this year?"></textarea>
+    </label>
+
+    <label class="field">
+      <span>Category</span>
+      <select id="tileCategory"></select>
+    </label>
+
+    <div class="field">
+      <span>Photo</span>
+      <div id="tilePhotoDrop" class="photo-drop">
+        <img id="tilePhotoPreview" alt="" hidden>
+        <div id="tilePhotoEmpty" class="photo-empty">
+          <span>Drop a photo here, or</span>
+          <button id="btnPickPhoto" type="button" class="btn btn-small">Choose file</button>
+        </div>
+        <button id="btnRemovePhoto" type="button" class="btn btn-small btn-danger" hidden>Remove photo</button>
+      </div>
+      <input id="tilePhoto" type="file" accept="image/*" hidden>
+    </div>
+
+    <label class="field checkbox-field">
+      <input id="tileDone" type="checkbox">
+      <span>Completed</span>
+    </label>
+
+    <label class="field" id="dateField">
+      <span>Date completed</span>
+      <input id="tileDate" type="date">
+    </label>
+
+    <label class="field">
+      <span>Note <em>(shown on the collage)</em></span>
+      <textarea id="tileNote" rows="2" maxlength="140" placeholder="How did it go?"></textarea>
+    </label>
+
+    <div class="modal-actions">
+      <button id="btnClearTile" class="btn btn-quiet btn-danger">Clear tile</button>
+      <span class="toolbar-spacer"></span>
+      <button id="btnSaveTile" class="btn btn-gold">Done</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/suggestions.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
