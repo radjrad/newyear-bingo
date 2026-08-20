@@ -7,11 +7,14 @@ No build step, no dependencies, no accounts. Everything lives in your browser.
 
 ## Running it
 
+From the project directory:
+
 ```bash
-python3 "/Users/jaredfriesmacbookair/Desktop/Claude Code/newyear-bingo/serve.py"
+python3 serve.py
 ```
 
-Then open <http://localhost:8420>.
+Then open <http://localhost:8420>. To use a different port, pass it as an
+argument — `python3 serve.py 9000`.
 
 A local server is required rather than double-clicking `index.html`, because
 browsers block IndexedDB (where your photos are stored) on `file://` URLs.
