@@ -10,6 +10,7 @@ const RED = '#ff3b30';
 const RED_2 = '#d81f16';
 const PURPLE = '#6d33d6';
 const LIME = '#7ed321';
+const TEAL = '#00cfd6';
 
 function loadImage(src) {
   return new Promise(resolve => {
@@ -302,10 +303,7 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
 
   ctx.fillStyle = '#fff';
   ctx.font = `700 19px ${FONT_FUN}`;
-  const bingoLabel = stats.bingos === 1 ? '1 BINGO! 🎉' : `${stats.bingos} BINGOS! 🎉`;
-  const scoreLine = stats.bingos
-    ? `${stats.done} of ${stats.total} complete  ·  ${bingoLabel}`
-    : `${stats.done} of ${stats.total} complete`;
+  const scoreLine = `${stats.done} of ${stats.total} complete`;
   ctx.save();
   ctx.shadowColor = 'rgba(14, 26, 92, 0.85)';
   ctx.shadowOffsetY = 2;
@@ -377,9 +375,10 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
                 img ? 0.4 : 0.75);
     }
 
-    // Border
-    ctx.lineWidth = inLine ? 5 : 3;
-    ctx.strokeStyle = inLine ? RED : NAVY;
+    // Border — red on a bingo line, teal on a completed goal, navy otherwise
+    const doneBorder = tile.done && !isFree && !inLine;
+    ctx.lineWidth = inLine ? 5 : doneBorder ? 4 : 3;
+    ctx.strokeStyle = inLine ? RED : doneBorder ? TEAL : NAVY;
     roundRect(ctx, x + 2, y + 2, cell - 4, cell - 4, 13);
     ctx.stroke();
 

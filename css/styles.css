@@ -178,13 +178,6 @@ header, section, main { position: relative; z-index: 1; }
   white-space: nowrap;
 }
 .badge-count { background: var(--yellow); color: var(--navy); }
-.badge-bingo { background: var(--paper); color: var(--navy); }
-.badge-bingo.hot { background: var(--red); color: #fff; animation: wiggle 0.7s ease-in-out infinite; }
-
-@keyframes wiggle {
-  0%, 100% { transform: rotate(-2.5deg); }
-  50%      { transform: rotate(2.5deg); }
-}
 
 .progress-track {
   height: 22px;
@@ -452,12 +445,18 @@ main { max-width: 1140px; margin: 0 auto; }
   text-shadow: var(--halo);
 }
 
+/* Completed goals wear a teal border — the fill stays put so photos and
+   text read as before; only a bingo line repaints the tile. */
+.tile.done { border-color: var(--teal); }
+.tile.done.free { border-color: var(--navy); }
+
 /* Bingo line highlight */
 .tile.bingo {
   background-color: #fff3bd;
   border-color: var(--red);
   box-shadow: 0 0 0 3px var(--yellow) inset;
 }
+.tile.done.bingo { border-color: var(--red); }
 
 /* ---------- Stamp mode ---------- */
 .stamp-bar {
@@ -487,12 +486,14 @@ main { max-width: 1140px; margin: 0 auto; }
   50%      { transform: scale(1.05); }
 }
 
-/* While armed, goal tiles jiggle to say "tap me" and the cursor turns
-   into a target; empty tiles sit it out. */
+/* While armed, the pointer becomes a little red dauber (hotspot on its ink
+   dot) and goal tiles jiggle to say "tap me"; empty tiles sit it out. */
 body.stamping .tile:not(.empty):not(.free) {
-  cursor: crosshair;
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g transform='rotate(-30 16 16)'><rect x='13' y='1' width='8' height='8' rx='2.5' fill='%230e1a5c'/><rect x='11' y='7' width='12' height='13' rx='3' fill='%23ff3b30'/><path d='M9 19 h16 v4 a3 3 0 0 1 -3 3 h-10 a3 3 0 0 1 -3 -3 z' fill='%23d81f16'/></g><circle cx='7' cy='28' r='3.4' fill='%23ff3b30' opacity='0.9'/></svg>") 7 28, pointer;
   animation: tile-jiggle 1.3s ease-in-out infinite;
 }
+body.stamping .tile.empty,
+body.stamping .tile.free { cursor: not-allowed; }
 body.stamping .tile:nth-child(2n)  { animation-delay: 0.18s; }
 body.stamping .tile:nth-child(3n)  { animation-delay: 0.33s; }
 body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); animation: none; }

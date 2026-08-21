@@ -187,13 +187,6 @@ header, section, main { position: relative; z-index: 1; }
   white-space: nowrap;
 }
 .badge-count { background: var(--yellow); color: var(--navy); }
-.badge-bingo { background: var(--paper); color: var(--navy); }
-.badge-bingo.hot { background: var(--red); color: #fff; animation: wiggle 0.7s ease-in-out infinite; }
-
-@keyframes wiggle {
-  0%, 100% { transform: rotate(-2.5deg); }
-  50%      { transform: rotate(2.5deg); }
-}
 
 .progress-track {
   height: 22px;
@@ -461,11 +454,91 @@ main { max-width: 1140px; margin: 0 auto; }
   text-shadow: var(--halo);
 }
 
+/* Completed goals wear a teal border — the fill stays put so photos and
+   text read as before; only a bingo line repaints the tile. */
+.tile.done { border-color: var(--teal); }
+.tile.done.free { border-color: var(--navy); }
+
 /* Bingo line highlight */
 .tile.bingo {
   background-color: #fff3bd;
   border-color: var(--red);
   box-shadow: 0 0 0 3px var(--yellow) inset;
+}
+.tile.done.bingo { border-color: var(--red); }
+
+/* ---------- Stamp mode ---------- */
+.stamp-bar {
+  max-width: 1140px;
+  margin: 0 auto 12px;
+  display: flex;
+  justify-content: center;
+}
+.btn-stamper {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 18px;
+  padding: 12px 24px;
+  border-radius: 99px;
+  background: var(--red);
+  color: #fff;
+}
+.stamper-icon { width: 24px; height: 24px; }
+.btn-stamper.active {
+  background: var(--lime);
+  color: var(--navy);
+  animation: stamper-pulse 1.1s ease-in-out infinite;
+}
+@keyframes stamper-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+/* While armed, the pointer becomes a little red dauber (hotspot on its ink
+   dot) and goal tiles jiggle to say "tap me"; empty tiles sit it out. */
+body.stamping .tile:not(.empty):not(.free) {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g transform='rotate(-30 16 16)'><rect x='13' y='1' width='8' height='8' rx='2.5' fill='%230e1a5c'/><rect x='11' y='7' width='12' height='13' rx='3' fill='%23ff3b30'/><path d='M9 19 h16 v4 a3 3 0 0 1 -3 3 h-10 a3 3 0 0 1 -3 -3 z' fill='%23d81f16'/></g><circle cx='7' cy='28' r='3.4' fill='%23ff3b30' opacity='0.9'/></svg>") 7 28, pointer;
+  animation: tile-jiggle 1.3s ease-in-out infinite;
+}
+body.stamping .tile.empty,
+body.stamping .tile.free { cursor: not-allowed; }
+body.stamping .tile:nth-child(2n)  { animation-delay: 0.18s; }
+body.stamping .tile:nth-child(3n)  { animation-delay: 0.33s; }
+body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); animation: none; }
+@keyframes tile-jiggle {
+  0%, 100% { transform: rotate(-0.7deg); }
+  50%      { transform: rotate(0.7deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-stamper.active, body.stamping .tile { animation: none !important; }
+}
+
+/* Corner ✎ badge — the editor's door now that tapping the tile stamps it. */
+.tile-edit {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 5;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 2px solid var(--navy);
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--navy);
+  box-shadow: 0 2px 0 var(--navy);
+  cursor: pointer;
+  opacity: 0.9;
+}
+.tile-edit:hover { background: var(--yellow); opacity: 1; }
+.tile-edit:focus-visible { outline: 3px dashed var(--red); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .tile-edit { width: 22px; height: 22px; font-size: 11px; top: 2px; right: 2px; }
 }
 
 /* ---------- The stamp ---------- */
@@ -899,7 +972,6 @@ main { max-width: 1140px; margin: 0 auto; }
   <div class="scoreboard">
     <div class="score-badges">
       <span id="progressText" class="badge badge-count">0 of 25</span>
-      <span id="bingoCount" class="badge badge-bingo">No bingos yet</span>
     </div>
     <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
   </div>
@@ -940,10 +1012,21 @@ main { max-width: 1140px; margin: 0 auto; }
 </section>
 
 <main>
+  <div class="stamp-bar">
+    <button id="btnStampMode" class="btn btn-stamper" aria-pressed="false">
+      <svg class="stamper-icon" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="38" y="8" width="24" height="26" rx="6" fill="currentColor"/>
+        <rect x="30" y="30" width="40" height="14" rx="5" fill="currentColor"/>
+        <path d="M20 62 C20 48 34 44 50 44 C66 44 80 48 80 62 L80 70 L20 70 Z" fill="currentColor"/>
+        <rect x="14" y="70" width="72" height="12" rx="5" fill="currentColor"/>
+      </svg>
+      <span id="stampModeLabel">Stamp!</span>
+    </button>
+  </div>
   <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
   <p class="hint">
-    <span class="hint-mouse">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</span>
-    <span class="hint-touch">Tap a tile to edit it, add a photo, or stamp it done.</span>
+    <span class="hint-mouse">Click a goal to stamp it done — click again to un-stamp. Use the ✎ to edit it or add a photo, or drag a photo straight onto a tile.</span>
+    <span class="hint-touch">Tap a goal to stamp it done — tap again to un-stamp. Use the ✎ to edit it or add a photo.</span>
   </p>
   <p class="credit">Created by: Jared B. Fries, 2026.</p>
 </main>
@@ -1288,6 +1371,7 @@ const RED = '#ff3b30';
 const RED_2 = '#d81f16';
 const PURPLE = '#6d33d6';
 const LIME = '#7ed321';
+const TEAL = '#00cfd6';
 
 function loadImage(src) {
   return new Promise(resolve => {
@@ -1580,10 +1664,7 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
 
   ctx.fillStyle = '#fff';
   ctx.font = `700 19px ${FONT_FUN}`;
-  const bingoLabel = stats.bingos === 1 ? '1 BINGO! 🎉' : `${stats.bingos} BINGOS! 🎉`;
-  const scoreLine = stats.bingos
-    ? `${stats.done} of ${stats.total} complete  ·  ${bingoLabel}`
-    : `${stats.done} of ${stats.total} complete`;
+  const scoreLine = `${stats.done} of ${stats.total} complete`;
   ctx.save();
   ctx.shadowColor = 'rgba(14, 26, 92, 0.85)';
   ctx.shadowOffsetY = 2;
@@ -1655,9 +1736,10 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
                 img ? 0.4 : 0.75);
     }
 
-    // Border
-    ctx.lineWidth = inLine ? 5 : 3;
-    ctx.strokeStyle = inLine ? RED : NAVY;
+    // Border — red on a bingo line, teal on a completed goal, navy otherwise
+    const doneBorder = tile.done && !isFree && !inLine;
+    ctx.lineWidth = inLine ? 5 : doneBorder ? 4 : 3;
+    ctx.strokeStyle = inLine ? RED : doneBorder ? TEAL : NAVY;
     roundRect(ctx, x + 2, y + 2, cell - 4, cell - 4, 13);
     ctx.stroke();
 
@@ -1749,6 +1831,7 @@ let activeIndex = null;        // tile currently open in the editor
 let activeCategory = 'All';
 let drawerTarget = null;       // tile a drawer pick should land on (null = first empty)
 let freshStamps = new Set();   // tiles that should play the stamp animation on next render
+let stampMode = false;         // stamper button armed: clicks stamp instead of edit
 
 /* ---------- Card model ---------- */
 
@@ -1978,7 +2061,23 @@ function render() {
     el.setAttribute('aria-label',
       `${tile.free ? 'Free space' : tile.text || 'Empty tile'}${tile.done ? ', completed' : ''}`);
 
-    el.addEventListener('click', () => openEditor(i));
+    // Tap-to-stamp: the tile itself is the stamper; the ✎ badge edits.
+    el.addEventListener('click', () => handleTileClick(i));
+    if (!tile.free) {
+      const edit = document.createElement('span');
+      edit.className = 'tile-edit';
+      edit.setAttribute('role', 'button');
+      edit.setAttribute('tabindex', '0');
+      edit.setAttribute('aria-label', 'Edit this tile');
+      edit.title = 'Edit this tile';
+      edit.textContent = '✎';
+      const openIt = e => { e.stopPropagation(); openEditor(i); };
+      edit.addEventListener('click', openIt);
+      edit.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') openIt(e);
+      });
+      el.appendChild(edit);
+    }
     wireTileDrop(el, i);
     grid.appendChild(el);
 
@@ -1989,11 +2088,6 @@ function render() {
 
   const s = stats();
   $('#progressText').textContent = `${s.done} of ${s.total}`;
-  const bingoBadge = $('#bingoCount');
-  bingoBadge.textContent = s.bingos
-    ? (s.bingos === 1 ? '1 BINGO! 🎉' : `${s.bingos} BINGOS! 🎉`)
-    : 'No bingos yet';
-  bingoBadge.classList.toggle('hot', s.bingos > 0);
   $('#progressFill').style.width = `${s.total ? (s.done / s.total) * 100 : 0}%`;
 
   document.querySelectorAll('.btn-size').forEach(b => {
@@ -2058,6 +2152,50 @@ function maybeAutoCollapseSetup() {
   setPanel('#setupPanel', true);
   persist();
   toast('Card is full — setup tucked away 👌');
+}
+
+/* ---------- Stamping ---------- */
+
+/* The stamper button arms the board for a stamping spree — tiles jiggle and
+   every click stamps. A plain tap on a goal tile stamps it too. */
+function setStampMode(on) {
+  stampMode = on;
+  document.body.classList.toggle('stamping', on);
+  const btn = $('#btnStampMode');
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', String(on));
+  $('#stampModeLabel').textContent = on ? 'Done stamping' : 'Stamp!';
+  if (on) toast('Stamp mode! Tap every goal you finished 🔴');
+}
+
+function handleTileClick(i) {
+  const tile = card.tiles[i];
+  if (tile.free) {
+    toast('That one is free — it counts automatically 🎁');
+    return;
+  }
+  if (!tile.text) {
+    if (stampMode) {
+      toast('Nothing to stamp here yet');
+    } else {
+      openEditor(i);
+    }
+    return;
+  }
+  toggleStamp(i);
+}
+
+function toggleStamp(i) {
+  const tile = card.tiles[i];
+  tile.done = !tile.done;
+  if (tile.done) {
+    tile.doneAt = tile.doneAt || todayISO();
+    freshStamps.add(i);
+  } else {
+    tile.doneAt = '';
+  }
+  persist();
+  render();
 }
 
 /* ---------- Tile editor ---------- */
@@ -2561,6 +2699,8 @@ function wireEvents() {
     persist();
   });
 
+  $('#btnStampMode').addEventListener('click', () => setStampMode(!stampMode));
+
   $('#btnSuggestions').addEventListener('click', () => {
     drawerTarget = null;
     openDrawer(true);
@@ -2654,6 +2794,7 @@ function wireEvents() {
     else if (!$('#shareModal').hidden) closeShare();
     else if ($('#suggestPanel').classList.contains('open')) openDrawer(false);
     else if (!$('#tileModal').hidden) closeEditor();
+    else if (stampMode) setStampMode(false);
   });
 
   window.addEventListener('beforeunload', () => flushSave());

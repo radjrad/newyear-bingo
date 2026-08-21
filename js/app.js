@@ -267,11 +267,6 @@ function render() {
 
   const s = stats();
   $('#progressText').textContent = `${s.done} of ${s.total}`;
-  const bingoBadge = $('#bingoCount');
-  bingoBadge.textContent = s.bingos
-    ? (s.bingos === 1 ? '1 BINGO! 🎉' : `${s.bingos} BINGOS! 🎉`)
-    : 'No bingos yet';
-  bingoBadge.classList.toggle('hot', s.bingos > 0);
   $('#progressFill').style.width = `${s.total ? (s.done / s.total) * 100 : 0}%`;
 
   document.querySelectorAll('.btn-size').forEach(b => {
