@@ -43,7 +43,7 @@ function createCard(size = 5) {
   const c = {
     version: 2,
     title: `${defaultYear()} BINGO`,
-    subtitle: 'A year worth checking off',
+    subtitle: '',
     size,
     tiles,
     setupCollapsed: false,
@@ -332,7 +332,9 @@ function openEditor(i) {
   activeIndex = i;
   $('#tileText').value = tile.text;
   $('#tileCategory').value = tile.category || '';
-  $('#tileNote').value = tile.note || '';
+  // A tile that already has a goal usually brought its category with it —
+  // hide the dropdown and keep the editor short.
+  $('#catField').style.display = tile.text ? 'none' : '';
   $('#tileDate').value = tile.doneAt || '';
   $('#tileDone').checked = tile.done;
   setPhotoPreview(tile.photo);
@@ -360,7 +362,6 @@ function commitEditor() {
   const wasDone = tile.done;
   tile.text = $('#tileText').value.trim();
   tile.category = $('#tileCategory').value;
-  tile.note = $('#tileNote').value.trim();
   tile.done = $('#tileDone').checked;
   tile.doneAt = tile.done ? $('#tileDate').value : '';
   if (tile.done && !wasDone) freshStamps.add(activeIndex);
@@ -935,6 +936,8 @@ async function init() {
   const saved = await loadCard();
   card = saved && Array.isArray(saved.tiles) ? saved : createCard(5);
   card.tiles = card.tiles.map(t => makeTile(t));
+  // The subtitle is now the owner's name; clear the old stock tagline.
+  if (card.subtitle === 'A year worth checking off') card.subtitle = '';
   syncHeaderInputs();
   syncPanels();
   render();

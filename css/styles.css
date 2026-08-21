@@ -514,6 +514,16 @@ main { max-width: 1140px; margin: 0 auto; }
   .hint-touch { display: inline; }
 }
 
+.credit {
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 0 rgba(22, 38, 122, 0.7);
+  margin: 10px 0 0;
+}
+
 /* ---------- Drawer ---------- */
 .drawer {
   position: fixed;

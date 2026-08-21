@@ -523,6 +523,16 @@ main { max-width: 1140px; margin: 0 auto; }
   .hint-touch { display: inline; }
 }
 
+.credit {
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 0 rgba(22, 38, 122, 0.7);
+  margin: 10px 0 0;
+}
+
 /* ---------- Drawer ---------- */
 .drawer {
   position: fixed;
@@ -882,7 +892,7 @@ main { max-width: 1140px; margin: 0 auto; }
     <span class="plaque-mark">🎉</span>
     <div class="plaque-fields">
       <input id="cardTitle" class="title-input" maxlength="26" placeholder="2026 BINGO" aria-label="Card title">
-      <input id="cardSubtitle" class="subtitle-input" maxlength="52" placeholder="Add a subtitle…" aria-label="Card subtitle">
+      <input id="cardSubtitle" class="subtitle-input" maxlength="52" placeholder="Name" aria-label="Whose card this is">
     </div>
   </div>
 
@@ -935,6 +945,7 @@ main { max-width: 1140px; margin: 0 auto; }
     <span class="hint-mouse">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</span>
     <span class="hint-touch">Tap a tile to edit it, add a photo, or stamp it done.</span>
   </p>
+  <p class="credit">Created by: Jared B. Fries, 2026.</p>
 </main>
 
 <!-- Suggestions drawer -->
@@ -967,7 +978,7 @@ main { max-width: 1140px; margin: 0 auto; }
       <button id="btnTileRandom" type="button" class="btn btn-purple btn-small">🎲 Random</button>
     </div>
 
-    <label class="field">
+    <label class="field" id="catField">
       <span>Category</span>
       <select id="tileCategory"></select>
     </label>
@@ -994,11 +1005,6 @@ main { max-width: 1140px; margin: 0 auto; }
     <label class="field" id="dateField">
       <span>Date completed</span>
       <input id="tileDate" type="date">
-    </label>
-
-    <label class="field">
-      <span>Note</span>
-      <textarea id="tileNote" rows="2" maxlength="140" placeholder="How did it go?"></textarea>
     </label>
 
     <div class="modal-actions">
@@ -1465,9 +1471,9 @@ function drawBubbleText(ctx, text, x, y, fontPx) {
 }
 
 /* The red dauber, drawn at the tile's own stored angle. */
-function drawStamp(ctx, cx, cy, size, rotationDeg) {
+function drawStamp(ctx, cx, cy, size, rotationDeg, alpha = 0.75) {
   ctx.save();
-  ctx.globalAlpha = 0.8;
+  ctx.globalAlpha = alpha;
   ctx.translate(cx, cy);
   ctx.rotate((rotationDeg * Math.PI) / 180);
   const s = size / 100;
@@ -1636,14 +1642,17 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
     }
 
     if (img) {
+      // Keep the photo nearly full strength — only a light wash for text.
       drawCover(ctx, img, x, y, cell, cell);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
       ctx.fillRect(x, y, cell, cell);
     }
     ctx.restore();
 
     if (tile.done) {
-      drawStamp(ctx, x + cell / 2, y + cell / 2, cell * 0.76, tile.stampRot || -12);
+      // Ghost the stamp on photo tiles so the picture stays the hero.
+      drawStamp(ctx, x + cell / 2, y + cell / 2, cell * 0.76, tile.stampRot || -12,
+                img ? 0.4 : 0.75);
     }
 
     // Border
@@ -1700,14 +1709,14 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
     }
   });
 
-  // Footer
+  // Footer credit — the score already sits under the progress bar up top.
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.font = `700 18px ${FONT_FUN}`;
+  ctx.font = `600 17px ${FONT_UI}`;
   ctx.save();
   ctx.shadowColor = 'rgba(14, 26, 92, 0.8)';
   ctx.shadowOffsetY = 2;
-  ctx.fillText(stats.caption, W / 2, boardY + boardH + 30);
+  ctx.fillText('Created by: Jared B. Fries, 2026.', W / 2, boardY + boardH + 32);
   ctx.restore();
 
   return canvas;
@@ -1773,7 +1782,7 @@ function createCard(size = 5) {
   const c = {
     version: 2,
     title: `${defaultYear()} BINGO`,
-    subtitle: 'A year worth checking off',
+    subtitle: '',
     size,
     tiles,
     setupCollapsed: false,
@@ -2062,7 +2071,9 @@ function openEditor(i) {
   activeIndex = i;
   $('#tileText').value = tile.text;
   $('#tileCategory').value = tile.category || '';
-  $('#tileNote').value = tile.note || '';
+  // A tile that already has a goal usually brought its category with it —
+  // hide the dropdown and keep the editor short.
+  $('#catField').style.display = tile.text ? 'none' : '';
   $('#tileDate').value = tile.doneAt || '';
   $('#tileDone').checked = tile.done;
   setPhotoPreview(tile.photo);
@@ -2090,7 +2101,6 @@ function commitEditor() {
   const wasDone = tile.done;
   tile.text = $('#tileText').value.trim();
   tile.category = $('#tileCategory').value;
-  tile.note = $('#tileNote').value.trim();
   tile.done = $('#tileDone').checked;
   tile.doneAt = tile.done ? $('#tileDate').value : '';
   if (tile.done && !wasDone) freshStamps.add(activeIndex);
@@ -2665,6 +2675,8 @@ async function init() {
   const saved = await loadCard();
   card = saved && Array.isArray(saved.tiles) ? saved : createCard(5);
   card.tiles = card.tiles.map(t => makeTile(t));
+  // The subtitle is now the owner's name; clear the old stock tagline.
+  if (card.subtitle === 'A year worth checking off') card.subtitle = '';
   syncHeaderInputs();
   syncPanels();
   render();

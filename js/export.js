@@ -193,9 +193,9 @@ function drawBubbleText(ctx, text, x, y, fontPx) {
 }
 
 /* The red dauber, drawn at the tile's own stored angle. */
-function drawStamp(ctx, cx, cy, size, rotationDeg) {
+function drawStamp(ctx, cx, cy, size, rotationDeg, alpha = 0.75) {
   ctx.save();
-  ctx.globalAlpha = 0.8;
+  ctx.globalAlpha = alpha;
   ctx.translate(cx, cy);
   ctx.rotate((rotationDeg * Math.PI) / 180);
   const s = size / 100;
@@ -364,14 +364,17 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
     }
 
     if (img) {
+      // Keep the photo nearly full strength — only a light wash for text.
       drawCover(ctx, img, x, y, cell, cell);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
       ctx.fillRect(x, y, cell, cell);
     }
     ctx.restore();
 
     if (tile.done) {
-      drawStamp(ctx, x + cell / 2, y + cell / 2, cell * 0.76, tile.stampRot || -12);
+      // Ghost the stamp on photo tiles so the picture stays the hero.
+      drawStamp(ctx, x + cell / 2, y + cell / 2, cell * 0.76, tile.stampRot || -12,
+                img ? 0.4 : 0.75);
     }
 
     // Border
@@ -428,14 +431,14 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
     }
   });
 
-  // Footer
+  // Footer credit — the score already sits under the progress bar up top.
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.font = `700 18px ${FONT_FUN}`;
+  ctx.font = `600 17px ${FONT_UI}`;
   ctx.save();
   ctx.shadowColor = 'rgba(14, 26, 92, 0.8)';
   ctx.shadowOffsetY = 2;
-  ctx.fillText(stats.caption, W / 2, boardY + boardH + 30);
+  ctx.fillText('Created by: Jared B. Fries, 2026.', W / 2, boardY + boardH + 32);
   ctx.restore();
 
   return canvas;
