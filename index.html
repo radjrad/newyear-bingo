@@ -67,6 +67,17 @@
 </section>
 
 <main>
+  <div class="stamp-bar">
+    <button id="btnStampMode" class="btn btn-stamper" aria-pressed="false">
+      <svg class="stamper-icon" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="38" y="8" width="24" height="26" rx="6" fill="currentColor"/>
+        <rect x="30" y="30" width="40" height="14" rx="5" fill="currentColor"/>
+        <path d="M20 62 C20 48 34 44 50 44 C66 44 80 48 80 62 L80 70 L20 70 Z" fill="currentColor"/>
+        <rect x="14" y="70" width="72" height="12" rx="5" fill="currentColor"/>
+      </svg>
+      <span id="stampModeLabel">Stamp!</span>
+    </button>
+  </div>
   <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
   <p class="hint">
     <span class="hint-mouse">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</span>

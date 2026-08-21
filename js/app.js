@@ -10,6 +10,7 @@ let activeIndex = null;        // tile currently open in the editor
 let activeCategory = 'All';
 let drawerTarget = null;       // tile a drawer pick should land on (null = first empty)
 let freshStamps = new Set();   // tiles that should play the stamp animation on next render
+let stampMode = false;         // stamper button armed: clicks stamp instead of edit
 
 /* ---------- Card model ---------- */
 
@@ -239,7 +240,7 @@ function render() {
     el.setAttribute('aria-label',
       `${tile.free ? 'Free space' : tile.text || 'Empty tile'}${tile.done ? ', completed' : ''}`);
 
-    el.addEventListener('click', () => openEditor(i));
+    el.addEventListener('click', () => handleTileClick(i));
     wireTileDrop(el, i);
     grid.appendChild(el);
 
@@ -319,6 +320,49 @@ function maybeAutoCollapseSetup() {
   setPanel('#setupPanel', true);
   persist();
   toast('Card is full — setup tucked away 👌');
+}
+
+/* ---------- Stamp mode ---------- */
+
+/* The stamper button arms the board: clicks stamp goals instead of editing. */
+function setStampMode(on) {
+  stampMode = on;
+  document.body.classList.toggle('stamping', on);
+  const btn = $('#btnStampMode');
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', String(on));
+  $('#stampModeLabel').textContent = on ? 'Done stamping' : 'Stamp!';
+  if (on) toast('Stamp mode! Tap every goal you finished 🔴');
+}
+
+function handleTileClick(i) {
+  const tile = card.tiles[i];
+  if (!stampMode) {
+    openEditor(i);
+    return;
+  }
+  if (tile.free) {
+    toast('That one is free — it counts automatically 🎁');
+    return;
+  }
+  if (!tile.text) {
+    toast('Nothing to stamp here yet');
+    return;
+  }
+  toggleStamp(i);
+}
+
+function toggleStamp(i) {
+  const tile = card.tiles[i];
+  tile.done = !tile.done;
+  if (tile.done) {
+    tile.doneAt = tile.doneAt || todayISO();
+    freshStamps.add(i);
+  } else {
+    tile.doneAt = '';
+  }
+  persist();
+  render();
 }
 
 /* ---------- Tile editor ---------- */
@@ -822,6 +866,8 @@ function wireEvents() {
     persist();
   });
 
+  $('#btnStampMode').addEventListener('click', () => setStampMode(!stampMode));
+
   $('#btnSuggestions').addEventListener('click', () => {
     drawerTarget = null;
     openDrawer(true);
@@ -915,6 +961,7 @@ function wireEvents() {
     else if (!$('#shareModal').hidden) closeShare();
     else if ($('#suggestPanel').classList.contains('open')) openDrawer(false);
     else if (!$('#tileModal').hidden) closeEditor();
+    else if (stampMode) setStampMode(false);
   });
 
   window.addEventListener('beforeunload', () => flushSave());
