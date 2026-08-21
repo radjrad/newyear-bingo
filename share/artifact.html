@@ -499,18 +499,17 @@ body.stamping .tile:not(.empty):not(.free) {
   body.stamping .grid, body.stamping .grid .tile { cursor: none; }
 }
 
-/* The full-size dauber that tracks the mouse — its foam pad is about the
-   size of the mark it leaves. The ink tip (75px, 175px in element pixels)
-   is the point that lands on the pointer; the resting tilt rotates around
-   that tip so aiming stays true. */
+/* The hand-size dauber that tracks the mouse. The ink tip (37.5px, 87.5px
+   in element pixels) is the point that lands on the pointer; the resting
+   tilt rotates around that tip so aiming stays true. */
 #dauber {
   position: fixed;
   left: 0;
   top: 0;
   z-index: 80;
-  width: 150px;
+  width: 75px;
   pointer-events: none;
-  filter: drop-shadow(0 10px 12px rgba(14, 26, 92, 0.45));
+  filter: drop-shadow(0 6px 8px rgba(14, 26, 92, 0.45));
   will-change: transform;
 }
 #dauber svg {
@@ -518,7 +517,7 @@ body.stamping .tile:not(.empty):not(.free) {
   width: 100%;
   height: auto;
   transform: rotate(-14deg);
-  transform-origin: 75px 175px;
+  transform-origin: 37.5px 87.5px;
 }
 #dauber.pressing svg { animation: dauber-press 0.3s cubic-bezier(0.3, 1.4, 0.5, 1); }
 @keyframes dauber-press {
@@ -537,8 +536,10 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
 
 @media (prefers-reduced-motion: reduce) {
   .btn-stamper.active, body.stamping .tile,
-  .tile.just-stamped, #dauber.pressing svg { animation: none !important; }
-  .splat { display: none; }
+  .tile.just-stamped, .tile.just-unstamped,
+  .tile.just-unstamped .stamp, #dauber.pressing svg,
+  body.mega-shake { animation: none !important; }
+  .splat, .celebration { display: none; }
 }
 
 /* Corner ✎ badge — the editor's door now that tapping the tile stamps it. */
@@ -580,6 +581,21 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
   pointer-events: none;
 }
 .tile.just-stamped .stamp { animation: stampDown 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+
+/* Un-stamping peels the mark off: it lifts, over-rotates, and fades away
+   while the tile gives a relieved little wobble. */
+.tile.just-unstamped .stamp { animation: stampLift 0.38s ease-in forwards; }
+@keyframes stampLift {
+  0%   { transform: translate(-50%, -50%) scale(1) rotate(var(--rot, -12deg)); opacity: 0.8; }
+  100% { transform: translate(-50%, -64%) scale(1.5) rotate(calc(var(--rot, -12deg) + 22deg)); opacity: 0; }
+}
+.tile.just-unstamped { animation: tile-shrug 0.38s ease-out; }
+@keyframes tile-shrug {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.05) rotate(1.2deg); }
+  70%  { transform: scale(0.97) rotate(-0.8deg); }
+  100% { transform: scale(1); }
+}
 
 /* The whole tile takes the hit: a quick squash, a rebound, and a settle. */
 .tile.just-stamped { animation: tile-thud 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
@@ -914,6 +930,33 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
 .share-hint strong { font-weight: 800; }
 .share-actions { justify-content: flex-end; }
 
+/* ---------- Whole-board celebration ---------- */
+body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes mega-shake {
+  10%, 90% { transform: translate(-3px, 2px); }
+  20%, 80% { transform: translate(6px, -3px) rotate(0.5deg); }
+  30%, 50%, 70% { transform: translate(-11px, 4px) rotate(-0.8deg); }
+  40%, 60% { transform: translate(11px, -4px) rotate(0.8deg); }
+}
+
+.celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+}
+.celebration .rain {
+  position: absolute;
+  top: -4vh;
+  animation: rainfall 3s linear forwards;
+}
+@keyframes rainfall {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), 108vh) rotate(var(--spin, 720deg)); opacity: 0; }
+}
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;
@@ -1186,7 +1229,7 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
 
 <!-- The big dauber that follows the mouse while stamp mode is armed -->
 <div id="dauber" hidden aria-hidden="true">
-  <svg viewBox="0 0 96 128" width="110" xmlns="http://www.w3.org/2000/svg">
+  <svg viewBox="0 0 96 128" width="75" xmlns="http://www.w3.org/2000/svg">
     <rect x="34" y="4" width="28" height="16" rx="6" fill="#0e1a5c"/>
     <rect x="28" y="16" width="40" height="48" rx="10" fill="#ff3b30"/>
     <rect x="28" y="34" width="40" height="12" fill="#ffffff" opacity="0.92"/>
@@ -2166,6 +2209,58 @@ function render() {
   });
 
   updateSetupSummary();
+  checkBoardComplete(s);
+}
+
+/* ---------- Whole-board celebration ---------- */
+
+let boardWasComplete = null;   // null until the first render sets the baseline
+
+/* Fires the blowout only when the board CROSSES into fully-complete, so a
+   reload of an already-finished card stays calm. */
+function checkBoardComplete(s) {
+  const complete = s.total > 0 && s.done === s.total;
+  if (boardWasComplete === null) {
+    boardWasComplete = complete;
+    return;
+  }
+  if (complete && !boardWasComplete) celebrateBoard();
+  boardWasComplete = complete;
+}
+
+function celebrateBoard() {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  toast('WHOLE BOARD COMPLETE! 🏆');
+  if (reduced) return;
+
+  // Screen shake
+  document.body.classList.remove('mega-shake');
+  void document.body.offsetWidth;
+  document.body.classList.add('mega-shake');
+  setTimeout(() => document.body.classList.remove('mega-shake'), 900);
+
+  // Confetti rain from the top of the screen
+  const wrap = document.createElement('div');
+  wrap.className = 'celebration';
+  for (let i = 0; i < 140; i++) {
+    const bit = document.createElement('span');
+    bit.className = 'rain';
+    const size = 8 + Math.random() * 12;
+    bit.style.width = `${size}px`;
+    bit.style.height = `${Math.random() < 0.35 ? size * 0.45 : size}px`;
+    const shape = i % 3;
+    if (shape === 0) bit.style.borderRadius = '50%';
+    else if (shape === 1) bit.style.clipPath = STAR_CLIP;
+    bit.style.left = `${Math.random() * 100}%`;
+    bit.style.background = POP_COLORS[i % POP_COLORS.length];
+    bit.style.setProperty('--drift', `${(Math.random() - 0.5) * 240}px`);
+    bit.style.setProperty('--spin', `${540 + Math.random() * 720}deg`);
+    bit.style.animationDuration = `${2.2 + Math.random() * 1.8}s`;
+    bit.style.animationDelay = `${Math.random() * 0.9}s`;
+    wrap.appendChild(bit);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 5200);
 }
 
 /* Burst of paper bits when a tile gets stamped — squares, dots and stars. */
@@ -2238,7 +2333,7 @@ function maybeAutoCollapseSetup() {
 /* On mouse machines the armed cursor is a life-size dauber element that
    follows the pointer; its ink tip sits exactly on the click point. */
 const FINE_POINTER = matchMedia('(pointer: fine)').matches;
-const DAUBER_TIP = { x: 75, y: 175 };   // element pixels, matches the CSS note
+const DAUBER_TIP = { x: 37.5, y: 87.5 };   // element pixels, matches the CSS note
 
 function moveDauber(e) {
   const d = $('#dauber');
@@ -2299,11 +2394,20 @@ function toggleStamp(i) {
     tile.doneAt = tile.doneAt || todayISO();
     freshStamps.add(i);
     if (stampMode) pressDauber();
-  } else {
-    tile.doneAt = '';
+    persist();
+    render();
+    return;
   }
+  tile.doneAt = '';
   persist();
-  render();
+  // Let the stamp peel off before the re-render removes it.
+  const el = document.querySelector(`.tile[data-index="${i}"]`);
+  if (el && el.querySelector('.stamp') && !el.classList.contains('just-unstamped')) {
+    el.classList.add('just-unstamped');
+    setTimeout(render, 380);
+  } else {
+    render();
+  }
 }
 
 /* ---------- Tile editor ---------- */
