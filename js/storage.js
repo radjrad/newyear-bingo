@@ -1,24 +1,50 @@
-/* IndexedDB-backed persistence. Photos are stored as data URLs inside the
-   card record, which is why this uses IDB instead of localStorage (5MB cap). */
+/* Persistence with a fallback chain.
+
+   IndexedDB is the first choice: it holds many megabytes, which matters
+   because photos are stored as data URLs inside the card record. Browsers
+   block IndexedDB when a page is opened straight off the filesystem
+   (file://), which is exactly how someone opens a copy sent to them, so we
+   fall back to localStorage there and warn if the photos overflow its ~5MB. */
+
 const DB_NAME = 'newyear-bingo';
 const DB_VERSION = 1;
 const STORE = 'cards';
 const CARD_KEY = 'current';
+const LS_KEY = 'newyear-bingo-card';
 
 let _dbPromise = null;
+let _mode = null;              // 'idb' | 'ls', decided on first use
 
 function openDB() {
   if (_dbPromise) return _dbPromise;
   _dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    if (!window.indexedDB) return reject(new Error('no indexedDB'));
+    let req;
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (err) {
+      return reject(err);     // file:// throws synchronously in some browsers
+    }
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error || new Error('indexedDB blocked'));
+    req.onblocked = () => reject(new Error('indexedDB blocked'));
   });
   return _dbPromise;
+}
+
+async function storageMode() {
+  if (_mode) return _mode;
+  try {
+    await openDB();
+    _mode = 'idb';
+  } catch {
+    _mode = 'ls';
+  }
+  return _mode;
 }
 
 async function idbGet(key) {
@@ -43,7 +69,9 @@ async function idbSet(key, value) {
 
 async function loadCard() {
   try {
-    return await idbGet(CARD_KEY);
+    if (await storageMode() === 'idb') return await idbGet(CARD_KEY);
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch (err) {
     console.warn('Could not read saved card:', err);
     return null;
@@ -69,9 +97,14 @@ async function flushSave() {
   const card = _pendingCard;
   _pendingCard = null;
   try {
-    await idbSet(CARD_KEY, card);
+    if (await storageMode() === 'idb') {
+      await idbSet(CARD_KEY, card);
+    } else {
+      localStorage.setItem(LS_KEY, JSON.stringify(card));
+    }
   } catch (err) {
     console.error('Save failed:', err);
-    throw err;
+    // app.js defines this to surface the problem instead of failing silently.
+    if (typeof onStorageError === 'function') onStorageError(err);
   }
 }

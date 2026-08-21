@@ -4,53 +4,71 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>New Year's Bingo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎉</text></svg>">
 </head>
 <body>
 
-<div class="sparkles" aria-hidden="true"></div>
+<div class="confetti" aria-hidden="true"></div>
 
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-mark">🎉</span>
-    <div class="brand-fields">
-      <input id="cardTitle" class="title-input" maxlength="42" placeholder="2026 Bingo" aria-label="Card title">
-      <input id="cardSubtitle" class="subtitle-input" maxlength="60" placeholder="Add a subtitle…" aria-label="Card subtitle">
+<header class="hero">
+  <div class="plaque">
+    <span class="plaque-mark">🎉</span>
+    <div class="plaque-fields">
+      <input id="cardTitle" class="title-input" maxlength="26" placeholder="2026 BINGO" aria-label="Card title">
+      <input id="cardSubtitle" class="subtitle-input" maxlength="52" placeholder="Add a subtitle…" aria-label="Card subtitle">
     </div>
   </div>
 
-  <div class="progress-block">
-    <div class="progress-line">
-      <strong id="progressText">0 of 25</strong>
-      <span class="sep">·</span>
-      <span id="bingoCount">No bingos yet</span>
+  <div class="scoreboard">
+    <div class="score-badges">
+      <span id="progressText" class="badge badge-count">0 of 25</span>
+      <span id="bingoCount" class="badge badge-bingo">No bingos yet</span>
     </div>
     <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
   </div>
 </header>
 
-<nav class="toolbar" aria-label="Card actions">
-  <button id="btnSuggestions" class="btn btn-primary">✨ Suggestions</button>
-  <button id="btnFill" class="btn">🎲 Fill empty tiles</button>
-  <div class="size-group" role="group" aria-label="Grid size">
-    <span class="size-label">Grid</span>
-    <button class="btn btn-size" data-size="3">3×3</button>
-    <button class="btn btn-size" data-size="4">4×4</button>
-    <button class="btn btn-size" data-size="5">5×5</button>
+<section class="panel" id="setupPanel">
+  <button class="panel-head" id="setupHead" aria-expanded="true" aria-controls="setupBody">
+    <span class="panel-num">1</span>
+    <span class="panel-title">Set up your card</span>
+    <span id="setupSummary" class="panel-sub"></span>
+    <span class="chev" aria-hidden="true">▾</span>
+  </button>
+  <div class="panel-body" id="setupBody">
+    <button id="btnSuggestions" class="btn btn-teal">✨ Suggestions</button>
+    <button id="btnFill" class="btn btn-purple">🎲 Fill empty tiles</button>
+    <div class="size-group" role="group" aria-label="Grid size">
+      <span class="size-label">Grid size</span>
+      <button class="btn btn-size" data-size="3">3×3</button>
+      <button class="btn btn-size" data-size="4">4×4</button>
+      <button class="btn btn-size" data-size="5">5×5</button>
+    </div>
   </div>
-  <span class="toolbar-spacer"></span>
-  <button id="btnExport" class="btn btn-gold">⬇︎ Download card PNG</button>
-  <button id="btnExportPhotos" class="btn">🖼 Photo collage PNG</button>
-  <button id="btnBackup" class="btn btn-quiet">Backup</button>
-  <button id="btnRestoreLabel" class="btn btn-quiet">Restore</button>
-  <input id="btnRestore" type="file" accept="application/json" hidden>
-  <button id="btnReset" class="btn btn-quiet btn-danger">Reset</button>
-</nav>
+</section>
+
+<section class="panel" id="sharePanel">
+  <button class="panel-head" id="shareHead" aria-expanded="true" aria-controls="shareBody">
+    <span class="panel-num">2</span>
+    <span class="panel-title">Save &amp; share</span>
+    <span class="chev" aria-hidden="true">▾</span>
+  </button>
+  <div class="panel-body" id="shareBody">
+    <button id="btnExport" class="btn btn-yellow btn-big">⬇︎ Download Bingo Card</button>
+    <button id="btnBackup" class="btn">💾 Backup</button>
+    <button id="btnRestoreLabel" class="btn">📂 Restore</button>
+    <input id="btnRestore" type="file" accept="application/json" hidden>
+    <button id="btnReset" class="btn btn-danger">♻️ Reset</button>
+  </div>
+</section>
 
 <main>
   <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
-  <p class="hint">Click a tile to edit it, add a photo, or mark it done. Drag a photo straight onto a tile to attach it.</p>
+  <p class="hint">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</p>
 </main>
 
 <!-- Suggestions drawer -->
@@ -61,7 +79,7 @@
   </div>
   <input id="suggestSearch" class="search" type="search" placeholder="Search suggestions…" aria-label="Search suggestions">
   <div id="suggestCats" class="chips" role="group" aria-label="Filter by category"></div>
-  <p class="drawer-note">Click any suggestion to drop it into the first empty tile.</p>
+  <p id="drawerNote" class="drawer-note"></p>
   <div id="suggestList" class="suggest-list"></div>
 </aside>
 <div id="drawerScrim" class="scrim" hidden></div>
@@ -74,10 +92,14 @@
       <button id="btnCloseModal" class="icon-btn" aria-label="Close">✕</button>
     </div>
 
-    <label class="field">
+    <label class="field field-tight">
       <span>Goal</span>
       <textarea id="tileText" rows="2" maxlength="90" placeholder="What do you want to do this year?"></textarea>
     </label>
+    <div class="field goal-actions">
+      <button id="btnTileSuggest" type="button" class="btn btn-teal btn-small">✨ Suggestions</button>
+      <button id="btnTileRandom" type="button" class="btn btn-purple btn-small">🎲 Random</button>
+    </div>
 
     <label class="field">
       <span>Category</span>
@@ -99,7 +121,7 @@
 
     <label class="field checkbox-field">
       <input id="tileDone" type="checkbox">
-      <span>Completed</span>
+      <span>Stamp it done!</span>
     </label>
 
     <label class="field" id="dateField">
@@ -108,14 +130,48 @@
     </label>
 
     <label class="field">
-      <span>Note <em>(shown on the collage)</em></span>
+      <span>Note</span>
       <textarea id="tileNote" rows="2" maxlength="140" placeholder="How did it go?"></textarea>
     </label>
 
     <div class="modal-actions">
-      <button id="btnClearTile" class="btn btn-quiet btn-danger">Clear tile</button>
-      <span class="toolbar-spacer"></span>
-      <button id="btnSaveTile" class="btn btn-gold">Done</button>
+      <button id="btnClearTile" class="btn btn-danger btn-small">Clear tile</button>
+      <span class="spacer"></span>
+      <button id="btnSaveTile" class="btn btn-yellow">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- In-page confirm: browser confirm() is blocked inside embedded pages -->
+<div id="askModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="askTitle">
+  <div class="modal-card ask-card">
+    <div class="modal-head">
+      <h2 id="askTitle">Are you sure?</h2>
+    </div>
+    <p id="askText" class="ask-text"></p>
+    <div class="modal-actions">
+      <button id="askCancel" class="btn">Never mind</button>
+      <span class="spacer"></span>
+      <button id="askOk" class="btn btn-danger">Yes, do it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share sheet: shows the finished PNG so it can be saved or shared -->
+<div id="shareModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+  <div class="modal-card share-card">
+    <div class="modal-head">
+      <h2 id="shareModalTitle">Your bingo card</h2>
+      <button id="btnCloseShare" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+    <img id="shareImage" class="share-image" alt="Your finished bingo card">
+    <p class="share-hint">
+      <strong>On a phone:</strong> press and hold the picture, then choose Save or Share.<br>
+      <strong>On a computer:</strong> right-click it and choose “Save image as…”.
+    </p>
+    <div class="modal-actions share-actions">
+      <button id="btnShareNative" class="btn btn-teal" hidden>📲 Share…</button>
+      <button id="btnSaveImage" class="btn btn-yellow">⬇︎ Save to my device</button>
     </div>
   </div>
 </div>

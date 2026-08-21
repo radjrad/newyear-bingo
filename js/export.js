@@ -1,6 +1,15 @@
-/* Canvas renderers that turn a card into shareable PNGs. */
+/* Canvas renderer that turns a card into a shareable PNG. */
 
-const FONT_STACK = '"Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif';
+const FONT_FUN = '"Poppins", "Avenir Next", "Futura", "Century Gothic", "Segoe UI", sans-serif';
+const FONT_UI = '"Poppins", "Avenir Next", "Futura", "Segoe UI", system-ui, sans-serif';
+
+const NAVY = '#16267a';
+const NAVY_2 = '#0e1a5c';
+const YELLOW = '#ffd429';
+const RED = '#ff3b30';
+const RED_2 = '#d81f16';
+const PURPLE = '#6d33d6';
+const LIME = '#7ed321';
 
 function loadImage(src) {
   return new Promise(resolve => {
@@ -67,19 +76,149 @@ function drawCover(ctx, img, x, y, w, h) {
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
+/* Bright gradient plus scattered 90s shapes, seeded so it never re-rolls. */
 function paintBackdrop(ctx, w, h) {
   const bg = ctx.createLinearGradient(0, 0, w, h);
-  bg.addColorStop(0, '#161042');
-  bg.addColorStop(0.5, '#0a0e23');
-  bg.addColorStop(1, '#0b2440');
+  bg.addColorStop(0, '#29d3e6');
+  bg.addColorStop(0.46, '#4f8bff');
+  bg.addColorStop(1, '#9b5cff');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  const glow = ctx.createRadialGradient(w * 0.18, 0, 0, w * 0.18, 0, w * 0.7);
-  glow.addColorStop(0, 'rgba(120, 90, 255, 0.22)');
-  glow.addColorStop(1, 'rgba(120, 90, 255, 0)');
-  ctx.fillStyle = glow;
+  const warm = ctx.createRadialGradient(w * 0.12, 0, 0, w * 0.12, 0, w * 0.6);
+  warm.addColorStop(0, 'rgba(255, 227, 110, 0.75)');
+  warm.addColorStop(1, 'rgba(255, 227, 110, 0)');
+  ctx.fillStyle = warm;
   ctx.fillRect(0, 0, w, h);
+
+  const pink = ctx.createRadialGradient(w * 0.94, h * 0.04, 0, w * 0.94, h * 0.04, w * 0.55);
+  pink.addColorStop(0, 'rgba(255, 126, 196, 0.7)');
+  pink.addColorStop(1, 'rgba(255, 126, 196, 0)');
+  ctx.fillStyle = pink;
+  ctx.fillRect(0, 0, w, h);
+
+  const colors = ['#ff3b30', '#ffd429', '#00cfd6', '#9b5cff', '#ff4fa3', '#ffffff', '#ffb400', '#2bd9c8'];
+  let seed = 7;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+
+  ctx.save();
+  for (let i = 0; i < 190; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const c = colors[Math.floor(rand() * colors.length)];
+    const kind = Math.floor(rand() * 9);
+    const s = 16 + rand() * 52;
+    ctx.globalAlpha = 0.26 + rand() * 0.32;
+    ctx.fillStyle = c;
+    ctx.strokeStyle = c;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rand() * Math.PI * 2);
+
+    if (kind === 0) {                                   // disc
+      ctx.beginPath();
+      ctx.arc(0, 0, s / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (kind === 1) {                            // ring
+      ctx.lineWidth = Math.max(4, s * 0.16);
+      ctx.beginPath();
+      ctx.arc(0, 0, s / 2, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (kind === 2) {                            // triangle
+      ctx.beginPath();
+      ctx.moveTo(0, -s / 2);
+      ctx.lineTo(s / 2, s / 2);
+      ctx.lineTo(-s / 2, s / 2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (kind === 3) {                            // bar
+      ctx.fillRect(-s / 2, -s * 0.13, s, s * 0.26);
+    } else if (kind === 4) {                            // cross
+      const t = s * 0.24;
+      ctx.fillRect(-t / 2, -s / 2, t, s);
+      ctx.fillRect(-s / 2, -t / 2, s, t);
+    } else if (kind === 5) {                            // half disc
+      ctx.beginPath();
+      ctx.arc(0, 0, s / 2, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+    } else if (kind === 6) {                            // checkerboard
+      const q = s / 2;
+      ctx.fillRect(-q, -q, q, q);
+      ctx.fillRect(0, 0, q, q);
+    } else if (kind === 7) {                            // squiggle
+      ctx.lineWidth = Math.max(5, s * 0.17);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-s, 0);
+      ctx.bezierCurveTo(-s * 0.6, -s * 0.75, -s * 0.15, s * 0.75, 0, 0);
+      ctx.bezierCurveTo(s * 0.15, -s * 0.75, s * 0.6, s * 0.75, s, 0);
+      ctx.stroke();
+    } else {                                            // zigzag
+      ctx.lineWidth = Math.max(5, s * 0.17);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-s, s * 0.3);
+      ctx.lineTo(-s * 0.5, -s * 0.3);
+      ctx.lineTo(0, s * 0.3);
+      ctx.lineTo(s * 0.5, -s * 0.3);
+      ctx.lineTo(s, s * 0.3);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* Yellow bubble letters: red drop, navy outline, yellow fill. */
+function drawBubbleText(ctx, text, x, y, fontPx) {
+  ctx.font = `700 ${fontPx}px ${FONT_FUN}`;
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+
+  ctx.fillStyle = RED_2;
+  ctx.fillText(text, x, y + fontPx * 0.13);
+  ctx.fillStyle = RED;
+  ctx.fillText(text, x, y + fontPx * 0.1);
+
+  ctx.strokeStyle = NAVY;
+  ctx.lineWidth = fontPx * 0.17;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = YELLOW;
+  ctx.fillText(text, x, y);
+}
+
+/* The red dauber, drawn at the tile's own stored angle. */
+function drawStamp(ctx, cx, cy, size, rotationDeg) {
+  ctx.save();
+  ctx.globalAlpha = 0.8;
+  ctx.translate(cx, cy);
+  ctx.rotate((rotationDeg * Math.PI) / 180);
+  const s = size / 100;
+  ctx.scale(s, s);
+
+  ctx.beginPath();
+  ctx.arc(0, 0, 46, 0, Math.PI * 2);
+  ctx.fillStyle = RED;
+  ctx.fill();
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = RED_2;
+  ctx.stroke();
+
+  const pts = [
+    [0, -34], [10.6, -8.6], [38, -6.5], [17.1, 11.4], [23.5, 38],
+    [0, 23.6], [-23.5, 38], [-17.1, 11.4], [-38, -6.5], [-10.6, -8.6]
+  ];
+  ctx.beginPath();
+  pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+  ctx.closePath();
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.restore();
 }
 
 function formatDate(iso) {
@@ -94,13 +233,14 @@ function formatDate(iso) {
 async function renderCardPNG(card, stats, bingoSet = new Set()) {
   const size = card.size;
   const cell = 250;
-  const gap = 14;
-  const pad = 46;
+  const gap = 12;
+  const pad = 44;
   const gridSide = size * cell + (size - 1) * gap;
-  const headerH = 190;
-  const footerH = 92;
-  const W = gridSide + pad * 2;
-  const H = headerH + gridSide + footerH + pad;
+  const boardPad = 20;
+  const headerH = 244;   // must clear the score line under the progress bar
+  const footerH = 96;
+  const W = gridSide + boardPad * 2 + pad * 2;
+  const H = headerH + gridSide + boardPad * 2 + footerH;
 
   const canvas = document.createElement('canvas');
   const dpr = 2;
@@ -114,239 +254,189 @@ async function renderCardPNG(card, stats, bingoSet = new Set()) {
 
   // Header
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#f4c95d';
-  ctx.font = `800 54px ${FONT_STACK}`;
-  ctx.fillText(card.title || 'New Year Bingo', W / 2, pad + 6, W - pad * 2);
+  drawBubbleText(ctx, (card.title || 'NEW YEAR BINGO').toUpperCase(), W / 2, pad - 6, 62);
 
   if (card.subtitle) {
-    ctx.fillStyle = '#9aa3ca';
-    ctx.font = `500 21px ${FONT_STACK}`;
-    ctx.fillText(card.subtitle, W / 2, pad + 72, W - pad * 2);
+    const subY = pad + 74;
+    ctx.font = `700 21px ${FONT_FUN}`;
+    const tw = ctx.measureText(card.subtitle).width;
+    ctx.fillStyle = 'rgba(22, 38, 122, 0.55)';
+    roundRect(ctx, W / 2 - tw / 2 - 18, subY - 6, tw + 36, 36, 18);
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(card.subtitle, W / 2, subY);
   }
 
-  // Progress bar under the header
-  const barW = Math.min(520, gridSide);
+  // Scoreboard bar
+  const barW = Math.min(560, gridSide);
   const barX = (W - barW) / 2;
-  const barY = pad + 116;
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  roundRect(ctx, barX, barY, barW, 12, 6);
+  const barY = pad + 124;
+  const barH = 24;
+  ctx.fillStyle = '#fff';
+  roundRect(ctx, barX, barY, barW, barH, barH / 2);
   ctx.fill();
   const pct = stats.total ? stats.done / stats.total : 0;
   if (pct > 0) {
-    const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
-    grad.addColorStop(0, '#d99e2b');
-    grad.addColorStop(0.6, '#f4c95d');
-    grad.addColorStop(1, '#5ce0b0');
-    ctx.fillStyle = grad;
-    roundRect(ctx, barX, barY, Math.max(12, barW * pct), 12, 6);
-    ctx.fill();
+    ctx.save();
+    roundRect(ctx, barX, barY, barW, barH, barH / 2);
+    ctx.clip();
+    ctx.fillStyle = LIME;
+    ctx.fillRect(barX, barY, barW * pct, barH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 8;
+    for (let sx = barX - barH; sx < barX + barW * pct; sx += 16) {
+      ctx.beginPath();
+      ctx.moveTo(sx, barY + barH);
+      ctx.lineTo(sx + barH, barY);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
-  ctx.fillStyle = '#eef1ff';
-  ctx.font = `700 19px ${FONT_STACK}`;
-  const bingoLabel = stats.bingos === 1 ? '1 bingo' : `${stats.bingos} bingos`;
-  ctx.fillText(`${stats.done} of ${stats.total} complete  ·  ${bingoLabel}`, W / 2, barY + 26);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = NAVY;
+  roundRect(ctx, barX, barY, barW, barH, barH / 2);
+  ctx.stroke();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 19px ${FONT_FUN}`;
+  const bingoLabel = stats.bingos === 1 ? '1 BINGO! 🎉' : `${stats.bingos} BINGOS! 🎉`;
+  const scoreLine = stats.bingos
+    ? `${stats.done} of ${stats.total} complete  ·  ${bingoLabel}`
+    : `${stats.done} of ${stats.total} complete`;
+  ctx.save();
+  ctx.shadowColor = 'rgba(14, 26, 92, 0.85)';
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(scoreLine, W / 2, barY + barH + 12);
+  ctx.restore();
+
+  // Board panel
+  const boardX = pad;
+  const boardY = headerH;
+  const boardW = gridSide + boardPad * 2;
+  const boardH = gridSide + boardPad * 2;
+  ctx.fillStyle = NAVY_2;
+  roundRect(ctx, boardX, boardY + 8, boardW, boardH, 22);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  roundRect(ctx, boardX, boardY, boardW, boardH, 22);
+  ctx.fill();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = NAVY;
+  roundRect(ctx, boardX + 3, boardY + 3, boardW - 6, boardH - 6, 20);
+  ctx.stroke();
 
   // Tiles
-  const gridTop = headerH + pad * 0.4;
+  const gridTop = boardY + boardPad;
+  const gridLeft = boardX + boardPad;
   const images = await Promise.all(card.tiles.map(t => loadImage(t.photo)));
 
   card.tiles.forEach((tile, i) => {
     const col = i % size;
     const row = Math.floor(i / size);
-    const x = pad + col * (cell + gap);
+    const x = gridLeft + col * (cell + gap);
     const y = gridTop + row * (cell + gap);
     const img = images[i];
     const isFree = tile.free;
     const empty = !tile.text && !isFree;
+    const inLine = bingoSet.has(i);
 
     ctx.save();
-    roundRect(ctx, x, y, cell, cell, 18);
+    roundRect(ctx, x, y, cell, cell, 14);
     ctx.clip();
 
-    // Base fill
-    if (isFree) {
-      ctx.fillStyle = 'rgba(244,201,93,0.18)';
-    } else if (empty) {
-      ctx.fillStyle = 'rgba(255,255,255,0.03)';
-    } else {
-      const g = ctx.createLinearGradient(x, y, x + cell, y + cell);
-      g.addColorStop(0, '#1c2450');
-      g.addColorStop(1, '#131936');
-      ctx.fillStyle = g;
-    }
+    ctx.fillStyle = empty ? '#f2f5ff' : (isFree || inLine) ? '#fff3bd' : '#ffffff';
     ctx.fillRect(x, y, cell, cell);
 
+    if (isFree) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 212, 41, 0.55)';
+      ctx.lineWidth = 10;
+      for (let s = -cell; s < cell * 2; s += 20) {
+        ctx.beginPath();
+        ctx.moveTo(x + s, y);
+        ctx.lineTo(x + s - cell, y + cell);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     if (img) {
-      ctx.globalAlpha = 0.88;
       drawCover(ctx, img, x, y, cell, cell);
-      ctx.globalAlpha = 1;
-      const shade = ctx.createLinearGradient(0, y, 0, y + cell);
-      shade.addColorStop(0, 'rgba(6,9,26,0.18)');
-      shade.addColorStop(0.45, 'rgba(6,9,26,0.5)');
-      shade.addColorStop(1, 'rgba(6,9,26,0.86)');
-      ctx.fillStyle = shade;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
       ctx.fillRect(x, y, cell, cell);
     }
     ctx.restore();
 
-    // Border — gold for tiles sitting on a completed line
-    const inLine = bingoSet.has(i);
-    ctx.lineWidth = inLine ? 4 : tile.done ? 3 : 1.5;
-    ctx.strokeStyle = inLine ? '#f4c95d'
-      : tile.done ? 'rgba(92,224,176,0.75)'
-      : isFree ? 'rgba(244,201,93,0.5)'
-      : 'rgba(255,255,255,0.14)';
-    roundRect(ctx, x + 2, y + 2, cell - 4, cell - 4, 16);
+    if (tile.done) {
+      drawStamp(ctx, x + cell / 2, y + cell / 2, cell * 0.76, tile.stampRot || -12);
+    }
+
+    // Border
+    ctx.lineWidth = inLine ? 5 : 3;
+    ctx.strokeStyle = inLine ? RED : NAVY;
+    roundRect(ctx, x + 2, y + 2, cell - 4, cell - 4, 13);
     ctx.stroke();
 
     // Text block
-    const inner = cell - 34;
+    const inner = cell - 30;
     ctx.textAlign = 'center';
     const label = isFree ? 'FREE' : (tile.text || '');
-    ctx.font = isFree ? `800 30px ${FONT_STACK}` : `600 21px ${FONT_STACK}`;
+    ctx.font = isFree ? `800 46px ${FONT_FUN}` : `700 26px ${FONT_FUN}`;
     const lines = wrapLines(ctx, label, inner, 5);
-    const lineH = isFree ? 34 : 27;
-    const hasMeta = !!(tile.category && !isFree) ;
-    const blockH = lines.length * lineH + (hasMeta ? 22 : 0) + (tile.doneAt ? 22 : 0);
+    const lineH = isFree ? 50 : 33;
+    const hasCat = !!(tile.category && !isFree);
+    const blockH = lines.length * lineH + (hasCat ? 24 : 0) + (tile.doneAt ? 26 : 0);
     let ty = y + (cell - blockH) / 2;
 
-    if (hasMeta) {
-      ctx.fillStyle = 'rgba(154,163,202,0.9)';
-      ctx.font = `700 12px ${FONT_STACK}`;
-      ctx.fillText(tile.category.toUpperCase(), x + cell / 2, ty);
-      ty += 22;
-      ctx.font = `600 21px ${FONT_STACK}`;
+    // Over a photo or the red stamp, outline the text in white first — a hard
+    // stroke rather than a blurred shadow, so the letters stay sharp.
+    const needsHalo = !!img || tile.done;
+    const stamped = (text, cx2, cy2) => {
+      if (needsHalo) {
+        ctx.save();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 6;
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+        ctx.strokeText(text, cx2, cy2);
+        ctx.restore();
+      }
+      ctx.fillText(text, cx2, cy2);
+    };
+
+    if (hasCat) {
+      ctx.fillStyle = PURPLE;
+      ctx.font = `700 14px ${FONT_UI}`;
+      stamped(tile.category.toUpperCase(), x + cell / 2, ty);
+      ty += 24;
     }
 
-    ctx.fillStyle = isFree ? '#f4c95d' : tile.done ? '#dffaef' : '#eef1ff';
-    if (img) {
-      ctx.shadowColor = 'rgba(0,0,0,0.85)';
-      ctx.shadowBlur = 8;
-    }
+    ctx.fillStyle = isFree ? RED_2 : NAVY;
+    ctx.font = isFree ? `800 46px ${FONT_FUN}` : `700 26px ${FONT_FUN}`;
     for (const line of lines) {
-      ctx.fillText(line, x + cell / 2, ty);
+      stamped(line, x + cell / 2, ty);
       ty += lineH;
     }
-    ctx.shadowBlur = 0;
 
     if (tile.doneAt) {
-      ctx.fillStyle = '#5ce0b0';
-      ctx.font = `700 14px ${FONT_STACK}`;
-      ctx.fillText(formatDate(tile.doneAt), x + cell / 2, ty + 2);
-    }
-
-    // Completion stamp
-    if (tile.done) {
-      const cx = x + cell - 30;
-      const cy = y + 30;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 17, 0, Math.PI * 2);
-      ctx.fillStyle = '#5ce0b0';
-      ctx.fill();
-      ctx.strokeStyle = '#04301f';
-      ctx.lineWidth = 3.4;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx - 7, cy);
-      ctx.lineTo(cx - 2, cy + 6);
-      ctx.lineTo(cx + 8, cy - 6);
-      ctx.stroke();
+      ctx.fillStyle = RED_2;
+      ctx.font = `700 18px ${FONT_FUN}`;
+      stamped(formatDate(tile.doneAt), x + cell / 2, ty + 2);
     }
   });
 
   // Footer
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(154,163,202,0.85)';
-  ctx.font = `500 16px ${FONT_STACK}`;
-  ctx.fillText(stats.caption, W / 2, gridTop + gridSide + 34);
-
-  return canvas;
-}
-
-/* ---------- Photo collage PNG ---------- */
-async function renderCollagePNG(card, stats) {
-  const entries = card.tiles.filter(t => t.photo);
-  if (!entries.length) return null;
-
-  const cols = Math.min(4, Math.ceil(Math.sqrt(entries.length)));
-  const rows = Math.ceil(entries.length / cols);
-  const cellW = 400;
-  const photoH = 300;
-  const captionH = 96;
-  const cellH = photoH + captionH;
-  const gap = 16;
-  const pad = 46;
-  const headerH = 150;
-  const W = cols * cellW + (cols - 1) * gap + pad * 2;
-  const H = headerH + rows * cellH + (rows - 1) * gap + pad;
-
-  const canvas = document.createElement('canvas');
-  const dpr = 2;
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-  ctx.textBaseline = 'top';
-
-  paintBackdrop(ctx, W, H);
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#f4c95d';
-  ctx.font = `800 46px ${FONT_STACK}`;
-  ctx.fillText(card.title || 'New Year Bingo', W / 2, pad, W - pad * 2);
-  ctx.fillStyle = '#9aa3ca';
-  ctx.font = `500 19px ${FONT_STACK}`;
-  ctx.fillText(stats.caption, W / 2, pad + 60, W - pad * 2);
-
-  const images = await Promise.all(entries.map(t => loadImage(t.photo)));
-
-  entries.forEach((tile, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = pad + col * (cellW + gap);
-    const y = headerH + row * (cellH + gap);
-
-    ctx.save();
-    roundRect(ctx, x, y, cellW, cellH, 16);
-    ctx.clip();
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.fillRect(x, y, cellW, cellH);
-    const img = images[i];
-    if (img) drawCover(ctx, img, x, y, cellW, photoH);
-    ctx.restore();
-
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = tile.done ? 'rgba(92,224,176,0.6)' : 'rgba(255,255,255,0.14)';
-    roundRect(ctx, x + 1, y + 1, cellW - 2, cellH - 2, 15);
-    ctx.stroke();
-
-    // Caption block
-    ctx.textAlign = 'left';
-    let ty = y + photoH + 16;
-    const inner = cellW - 36;
-
-    ctx.fillStyle = '#eef1ff';
-    ctx.font = `700 18px ${FONT_STACK}`;
-    for (const line of wrapLines(ctx, tile.text, inner, 2)) {
-      ctx.fillText(line, x + 18, ty);
-      ty += 23;
-    }
-
-    const meta = [tile.done ? '✓ Done' : 'In progress', formatDate(tile.doneAt)].filter(Boolean).join('  ·  ');
-    ctx.fillStyle = tile.done ? '#5ce0b0' : '#9aa3ca';
-    ctx.font = `600 13px ${FONT_STACK}`;
-    ctx.fillText(meta, x + 18, ty + 2);
-    ty += 22;
-
-    if (tile.note) {
-      ctx.fillStyle = 'rgba(238,241,255,0.72)';
-      ctx.font = `400 13.5px ${FONT_STACK}`;
-      for (const line of wrapLines(ctx, tile.note, inner, 1)) {
-        ctx.fillText(line, x + 18, ty);
-      }
-    }
-  });
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 18px ${FONT_FUN}`;
+  ctx.save();
+  ctx.shadowColor = 'rgba(14, 26, 92, 0.8)';
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(stats.caption, W / 2, boardY + boardH + 30);
+  ctx.restore();
 
   return canvas;
 }

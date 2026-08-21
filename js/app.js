@@ -3,10 +3,13 @@
 const $ = sel => document.querySelector(sel);
 const MAX_PHOTO_EDGE = 1400;   // px, longest side after downscale
 const PHOTO_QUALITY = 0.85;
+const POP_COLORS = ['#ff3b30', '#ffd429', '#00cfd6', '#9b5cff', '#ff4fa3', '#7ed321'];
 
 let card = null;
 let activeIndex = null;        // tile currently open in the editor
 let activeCategory = 'All';
+let drawerTarget = null;       // tile a drawer pick should land on (null = first empty)
+let freshStamps = new Set();   // tiles that should play the stamp animation on next render
 
 /* ---------- Card model ---------- */
 
@@ -19,8 +22,14 @@ function makeTile(overrides = {}) {
     note: '',
     photo: null,
     free: false,
+    stampRot: randomRotation(),
     ...overrides
   };
+}
+
+/* Each stamp sits at its own angle, stored so the PNG matches the screen. */
+function randomRotation() {
+  return Math.round((Math.random() * 26 - 13) * 10) / 10;
 }
 
 function defaultYear() {
@@ -32,11 +41,13 @@ function defaultYear() {
 function createCard(size = 5) {
   const tiles = Array.from({ length: size * size }, () => makeTile());
   const c = {
-    version: 1,
-    title: `${defaultYear()} Bingo`,
+    version: 2,
+    title: `${defaultYear()} BINGO`,
     subtitle: 'A year worth checking off',
     size,
     tiles,
+    setupCollapsed: false,
+    shareCollapsed: false,
     createdAt: new Date().toISOString()
   };
   applyFreeCenter(c);
@@ -52,8 +63,29 @@ function applyFreeCenter(c) {
   }
 }
 
+/* An in-page confirm, because embedded pages block the browser's confirm(). */
+function ask(text, okLabel = 'Yes, do it') {
+  return new Promise(resolve => {
+    const modal = $('#askModal');
+    $('#askText').textContent = text;
+    $('#askOk').textContent = okLabel;
+    modal.hidden = false;
+
+    const done = answer => {
+      modal.hidden = true;
+      $('#askOk').onclick = null;
+      $('#askCancel').onclick = null;
+      modal.onclick = null;
+      resolve(answer);
+    };
+    $('#askOk').onclick = () => done(true);
+    $('#askCancel').onclick = () => done(false);
+    modal.onclick = e => { if (e.target === modal) done(false); };
+  });
+}
+
 /* Resizes the grid, keeping as much existing content as possible. */
-function resizeCard(newSize) {
+async function resizeCard(newSize) {
   const old = card.size;
   if (newSize === old) return;
   const kept = card.tiles.filter(t => !t.free && (t.text || t.photo));
@@ -61,10 +93,14 @@ function resizeCard(newSize) {
   // Shrinking can push filled tiles off the card, so confirm before losing them.
   const capacity = newSize * newSize - (newSize % 2 === 1 ? 1 : 0);
   const willDrop = Math.max(0, kept.length - capacity);
-  if (willDrop > 0 &&
-      !confirm(`Switching to ${newSize}×${newSize} drops ${willDrop} filled tile${willDrop > 1 ? 's' : ''} (photos and notes included). Continue?`)) {
-    render();
-    return;
+  if (willDrop > 0) {
+    const ok = await ask(
+      `Switching to ${newSize}×${newSize} drops ${willDrop} filled tile${willDrop > 1 ? 's' : ''}, photos and notes included.`,
+      `Switch to ${newSize}×${newSize}`);
+    if (!ok) {
+      render();
+      return;
+    }
   }
 
   const tiles = Array.from({ length: newSize * newSize }, () => makeTile());
@@ -79,8 +115,8 @@ function resizeCard(newSize) {
   const dropped = kept.length - k;
   persist();
   render();
-  toast(dropped > 0 ? `Resized to ${newSize}×${newSize} — ${dropped} tile${dropped > 1 ? 's' : ''} didn't fit`
-                    : `Resized to ${newSize}×${newSize}`);
+  toast(dropped > 0 ? `${newSize}×${newSize}! ${dropped} tile${dropped > 1 ? 's' : ''} didn't fit`
+                    : `${newSize}×${newSize} it is!`);
 }
 
 /* ---------- Stats ---------- */
@@ -142,6 +178,13 @@ function stats() {
 
 /* ---------- Rendering ---------- */
 
+const STAMP_SVG =
+  '<svg class="stamp" viewBox="0 0 100 100" aria-hidden="true">' +
+  '<circle cx="50" cy="50" r="46" fill="#ff3b30"/>' +
+  '<circle cx="50" cy="50" r="46" fill="none" stroke="#d81f16" stroke-width="5"/>' +
+  '<path fill="#fff" d="M50 16 L60.6 41.4 L88 43.5 L67.1 61.4 L73.5 88 L50 73.6 L26.5 88 L32.9 61.4 L12 43.5 L39.4 41.4 Z"/>' +
+  '</svg>';
+
 function render() {
   const grid = $('#grid');
   grid.style.setProperty('--size', card.size);
@@ -154,12 +197,14 @@ function render() {
     el.type = 'button';
     el.dataset.index = i;
     el.setAttribute('role', 'gridcell');
+    el.style.setProperty('--rot', `${tile.stampRot || -12}deg`);
 
     if (tile.free) el.classList.add('free');
     if (tile.done) el.classList.add('done');
     if (tile.photo) el.classList.add('has-photo');
     if (!tile.text && !tile.free) el.classList.add('empty');
     if (highlight.has(i)) el.classList.add('bingo');
+    if (freshStamps.has(i)) el.classList.add('just-stamped');
 
     if (tile.photo) {
       const img = document.createElement('img');
@@ -168,6 +213,8 @@ function render() {
       img.alt = '';
       el.appendChild(img);
     }
+
+    if (tile.done) el.insertAdjacentHTML('beforeend', STAMP_SVG);
 
     if (tile.category && !tile.free) {
       const cat = document.createElement('span');
@@ -188,31 +235,48 @@ function render() {
       el.appendChild(d);
     }
 
-    if (tile.done) {
-      const stamp = document.createElement('span');
-      stamp.className = 'stamp';
-      stamp.textContent = '✓';
-      el.appendChild(stamp);
-    }
-
     el.setAttribute('aria-label',
       `${tile.free ? 'Free space' : tile.text || 'Empty tile'}${tile.done ? ', completed' : ''}`);
 
     el.addEventListener('click', () => openEditor(i));
     wireTileDrop(el, i);
     grid.appendChild(el);
+
+    if (freshStamps.has(i)) burstConfetti(el);
   });
+
+  freshStamps.clear();
 
   const s = stats();
   $('#progressText').textContent = `${s.done} of ${s.total}`;
-  $('#bingoCount').textContent = s.bingos
-    ? (s.bingos === 1 ? '1 bingo! 🎉' : `${s.bingos} bingos! 🎉`)
+  const bingoBadge = $('#bingoCount');
+  bingoBadge.textContent = s.bingos
+    ? (s.bingos === 1 ? '1 BINGO! 🎉' : `${s.bingos} BINGOS! 🎉`)
     : 'No bingos yet';
+  bingoBadge.classList.toggle('hot', s.bingos > 0);
   $('#progressFill').style.width = `${s.total ? (s.done / s.total) * 100 : 0}%`;
 
   document.querySelectorAll('.btn-size').forEach(b => {
     b.classList.toggle('active', Number(b.dataset.size) === card.size);
   });
+
+  updateSetupSummary();
+}
+
+/* Little burst of paper bits when a tile gets stamped. */
+function burstConfetti(el) {
+  for (let i = 0; i < 12; i++) {
+    const bit = document.createElement('span');
+    bit.className = 'pop';
+    const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.4;
+    const dist = 26 + Math.random() * 26;
+    bit.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+    bit.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+    bit.style.background = POP_COLORS[i % POP_COLORS.length];
+    bit.style.animationDelay = `${Math.random() * 0.08}s`;
+    el.appendChild(bit);
+    setTimeout(() => bit.remove(), 900);
+  }
 }
 
 function prettyDate(iso) {
@@ -224,6 +288,36 @@ function prettyDate(iso) {
 
 function persist() {
   saveCard(card);
+}
+
+/* ---------- Accordion panels ---------- */
+
+function setPanel(panelId, collapsed) {
+  const panel = $(panelId);
+  panel.classList.toggle('collapsed', collapsed);
+  panel.querySelector('.panel-head').setAttribute('aria-expanded', String(!collapsed));
+}
+
+function syncPanels() {
+  setPanel('#setupPanel', !!card.setupCollapsed);
+  setPanel('#sharePanel', !!card.shareCollapsed);
+}
+
+function updateSetupSummary() {
+  const empty = card.tiles.filter(t => !t.free && !t.text).length;
+  $('#setupSummary').textContent = empty
+    ? `${empty} tile${empty > 1 ? 's' : ''} still empty · ${card.size}×${card.size}`
+    : `All filled · ${card.size}×${card.size}`;
+}
+
+/* Once every tile has a goal, the setup box has done its job — tuck it away. */
+function maybeAutoCollapseSetup() {
+  if (card.setupCollapsed) return;
+  if (card.tiles.some(t => !t.free && !t.text)) return;
+  card.setupCollapsed = true;
+  setPanel('#setupPanel', true);
+  persist();
+  toast('Card is full — setup tucked away 👌');
 }
 
 /* ---------- Tile editor ---------- */
@@ -243,24 +337,28 @@ function openEditor(i) {
   setPhotoPreview(tile.photo);
   syncDateField();
   $('#tileModal').hidden = false;
-  setTimeout(() => $('#tileText').focus(), 30);
+  $('#tileModal').querySelector('.modal-card').scrollTop = 0;
+  setTimeout(() => $('#tileText').focus({ preventScroll: true }), 30);
 }
 
 function closeEditor() {
   commitEditor();
   $('#tileModal').hidden = true;
   activeIndex = null;
+  maybeAutoCollapseSetup();
 }
 
 /* Pulls the modal fields back into the tile. */
 function commitEditor() {
   if (activeIndex === null) return;
   const tile = card.tiles[activeIndex];
+  const wasDone = tile.done;
   tile.text = $('#tileText').value.trim();
   tile.category = $('#tileCategory').value;
   tile.note = $('#tileNote').value.trim();
   tile.done = $('#tileDone').checked;
   tile.doneAt = tile.done ? $('#tileDate').value : '';
+  if (tile.done && !wasDone) freshStamps.add(activeIndex);
   persist();
   render();
 }
@@ -321,10 +419,11 @@ async function attachPhoto(index, file) {
     const dataUrl = await processPhoto(file);
     const tile = card.tiles[index];
     tile.photo = dataUrl;
-    // A photo is usually proof it happened — offer the check automatically.
+    // A photo is usually proof it happened — offer the stamp automatically.
     if (!tile.done) {
       tile.done = true;
       tile.doneAt = tile.doneAt || todayISO();
+      freshStamps.add(index);
     }
     await saveCard(card, { immediate: true });
     if (activeIndex === index) {
@@ -398,6 +497,10 @@ function renderSuggestions() {
     (!query || s.text.toLowerCase().includes(query))
   );
 
+  $('#drawerNote').textContent = drawerTarget === null
+    ? 'Click a suggestion to drop it into the first empty tile.'
+    : 'Click a suggestion to use it for the tile you are editing.';
+
   list.innerHTML = '';
   if (!items.length) {
     list.innerHTML = '<p class="suggest-empty">Nothing matches that search.</p>';
@@ -425,6 +528,15 @@ function firstEmptyIndex() {
 }
 
 function placeSuggestion(s) {
+  // When the editor is open the pick belongs to that tile, not the first blank one.
+  if (drawerTarget !== null) {
+    $('#tileText').value = s.text;
+    $('#tileCategory').value = s.category;
+    commitEditor();
+    openDrawer(false);
+    toast('Goal set ✨');
+    return;
+  }
   const i = firstEmptyIndex();
   if (i === -1) {
     toast('Every tile is filled — clear one first');
@@ -435,6 +547,18 @@ function placeSuggestion(s) {
   render();
   renderSuggestions();
   toast(`Added "${s.text}"`);
+  maybeAutoCollapseSetup();
+}
+
+/* Unused suggestions in random order. */
+function shuffledPool() {
+  const used = usedTexts();
+  const pool = allSuggestions().filter(s => !used.has(s.text.toLowerCase()));
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
 }
 
 function fillEmptyTiles() {
@@ -443,13 +567,7 @@ function fillEmptyTiles() {
     toast('No empty tiles to fill');
     return;
   }
-  const used = usedTexts();
-  const pool = allSuggestions().filter(s => !used.has(s.text.toLowerCase()));
-  // Fisher-Yates, so repeated fills don't favour the top of the list.
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
+  const pool = shuffledPool();
   let filled = 0;
   for (const i of empties) {
     const s = pool.pop();
@@ -461,6 +579,21 @@ function fillEmptyTiles() {
   render();
   renderSuggestions();
   toast(`Filled ${filled} tile${filled > 1 ? 's' : ''} 🎲`);
+  maybeAutoCollapseSetup();
+}
+
+/* Drops one random unused suggestion into the tile being edited. */
+function randomiseActiveTile() {
+  if (activeIndex === null) return;
+  const pick = shuffledPool()[0];
+  if (!pick) {
+    toast('You have used every suggestion!');
+    return;
+  }
+  $('#tileText').value = pick.text;
+  $('#tileCategory').value = pick.category;
+  commitEditor();
+  toast('Rolled a new goal 🎲');
 }
 
 function openDrawer(open) {
@@ -468,25 +601,79 @@ function openDrawer(open) {
   $('#suggestPanel').setAttribute('aria-hidden', String(!open));
   $('#drawerScrim').hidden = !open;
   if (open) renderSuggestions();
+  else drawerTarget = null;
 }
 
 /* ---------- Export / backup ---------- */
 
+let shareBlobUrl = null;
+
+/* Renders the card, then offers it every way a browser might allow:
+   the native share sheet, a direct download, or a long-press on the image.
+   The picture itself is always shown because embedded viewers (and some
+   phone browsers) silently block downloads a page starts on its own. */
 async function exportCard() {
-  toast('Rendering your card…');
+  toast('Making your picture…');
   const canvas = await renderCardPNG(card, stats(), bingoIndexes());
-  downloadCanvas(canvas, `${slug(card.title)}-bingo.png`);
-  toast('Card PNG downloaded ✓');
+  const filename = `${slug(card.title)}.png`;
+
+  canvas.toBlob(async blob => {
+    if (!blob) {
+      toast('Could not build the picture');
+      return;
+    }
+    if (shareBlobUrl) URL.revokeObjectURL(shareBlobUrl);
+    shareBlobUrl = URL.createObjectURL(blob);
+
+    $('#shareImage').src = shareBlobUrl;
+    $('#shareModal').hidden = false;
+
+    const file = new File([blob], filename, { type: 'image/png' });
+    const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+    const shareBtn = $('#btnShareNative');
+    shareBtn.hidden = !canShare;
+    shareBtn.onclick = async () => {
+      try {
+        await navigator.share({ files: [file], title: card.title || 'My bingo card' });
+      } catch (err) {
+        if (err && err.name !== 'AbortError') toast('Sharing was blocked — try press and hold');
+      }
+    };
+
+    // Hosted viewers (claude.ai) block a page's own downloads and hand saving
+    // to the platform instead; a plain browser uses a normal download link.
+    const hosted = !!(window.claude && typeof window.claude.use === 'function');
+    const downloads = hosted ? await window.claude.use('downloads') : null;
+    const saveBtn = $('#btnSaveImage');
+    saveBtn.hidden = hosted && !downloads;
+
+    saveBtn.onclick = async () => {
+      if (downloads) {
+        try {
+          await downloads.save({ filename, data: blob });
+          toast('Saved ✓');
+        } catch (err) {
+          const code = err && err.code;
+          if (code === 'declined') return;
+          toast(code === 'too_large'
+            ? 'Picture is too big to save — try removing a photo'
+            : 'Could not save — press and hold the picture instead');
+        }
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = shareBlobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast('Check your Downloads folder 📁');
+    };
+  }, 'image/png');
 }
 
-async function exportCollage() {
-  const canvas = await renderCollagePNG(card, stats());
-  if (!canvas) {
-    toast('Add a photo to a tile first 📸');
-    return;
-  }
-  downloadCanvas(canvas, `${slug(card.title)}-photos.png`);
-  toast('Collage PNG downloaded ✓');
+function closeShare() {
+  $('#shareModal').hidden = true;
 }
 
 function slug(str) {
@@ -498,7 +685,7 @@ function backup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${slug(card.title)}-bingo-backup.json`;
+  a.download = `${slug(card.title)}-backup.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   toast('Backup saved — photos included');
@@ -514,6 +701,7 @@ function restore(file) {
       card.tiles = card.tiles.map(t => makeTile(t));
       await saveCard(card, { immediate: true });
       syncHeaderInputs();
+      syncPanels();
       render();
       toast('Card restored ✓');
     } catch {
@@ -539,16 +727,61 @@ function syncHeaderInputs() {
   $('#cardSubtitle').value = card.subtitle || '';
 }
 
-function paintSparkles() {
-  const wrap = $('.sparkles');
+/* Scattered Memphis-style geometry: discs, rings, triangles, bars, crosses,
+   half-discs, checkerboards, squiggles and zigzags. */
+const CONFETTI_SHAPES = [
+  'c-dot', 'c-ring', 'c-tri', 'c-bar', 'c-plus',
+  'c-half', 'c-quarter', 'c-check', 'c-diamond', 'squiggle', 'zigzag'
+];
+
+function squiggleSVG(color, w) {
+  const h = w * 0.42;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 100 42" fill="none">` +
+    `<path d="M2 21 C 14 -3, 26 45, 38 21 S 62 -3, 74 21 S 92 45, 98 21" ` +
+    `stroke="${color}" stroke-width="9" stroke-linecap="round"/></svg>`;
+}
+
+function zigzagSVG(color, w) {
+  const h = w * 0.4;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 100 40" fill="none">` +
+    `<path d="M3 30 L 20 10 L 37 30 L 54 10 L 71 30 L 88 10 L 97 22" ` +
+    `stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function paintConfetti() {
+  const wrap = $('.confetti');
+  const colors = POP_COLORS.concat(['#ffffff', '#ffb400', '#2bd9c8']);
   const frag = document.createDocumentFragment();
-  for (let i = 0; i < 44; i++) {
-    const s = document.createElement('i');
-    s.style.left = `${Math.random() * 100}%`;
-    s.style.top = `${Math.random() * 100}%`;
-    s.style.animationDelay = `${Math.random() * 4}s`;
-    s.style.opacity = String(0.2 + Math.random() * 0.6);
-    frag.appendChild(s);
+
+  for (let i = 0; i < 78; i++) {
+    const bit = document.createElement('i');
+    const shape = CONFETTI_SHAPES[Math.floor(Math.random() * CONFETTI_SHAPES.length)];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const size = 14 + Math.random() * 40;
+
+    bit.style.color = color;
+    bit.style.left = `${Math.random() * 100}%`;
+    bit.style.top = `${Math.random() * 100}%`;
+    bit.style.opacity = String(0.28 + Math.random() * 0.42);
+    bit.style.animationDelay = `${Math.random() * 11}s`;
+    bit.style.animationDuration = `${8 + Math.random() * 7}s`;
+    bit.style.setProperty('--spin', `${Math.round(Math.random() * 360)}deg`);
+    bit.style.transform = `rotate(${Math.round(Math.random() * 360)}deg)`;
+
+    if (shape === 'squiggle' || shape === 'zigzag') {
+      const w = size * 2.2;
+      bit.innerHTML = shape === 'squiggle' ? squiggleSVG(color, w) : zigzagSVG(color, w);
+    } else {
+      bit.className = shape;
+      bit.style.width = `${size}px`;
+      bit.style.height = `${shape === 'c-bar' ? Math.max(6, size * 0.28) : size}px`;
+      // Outline shapes paint with currentColor; solid ones need a background.
+      if (!['c-ring', 'c-tri', 'c-plus', 'c-check'].includes(shape)) {
+        bit.style.background = color;
+      }
+      if (shape === 'c-diamond') bit.style.transform += ' rotate(45deg)';
+    }
+    frag.appendChild(bit);
   }
   wrap.appendChild(frag);
 }
@@ -565,7 +798,21 @@ function wireEvents() {
     persist();
   });
 
-  $('#btnSuggestions').addEventListener('click', () => openDrawer(true));
+  $('#setupHead').addEventListener('click', () => {
+    card.setupCollapsed = !card.setupCollapsed;
+    setPanel('#setupPanel', card.setupCollapsed);
+    persist();
+  });
+  $('#shareHead').addEventListener('click', () => {
+    card.shareCollapsed = !card.shareCollapsed;
+    setPanel('#sharePanel', card.shareCollapsed);
+    persist();
+  });
+
+  $('#btnSuggestions').addEventListener('click', () => {
+    drawerTarget = null;
+    openDrawer(true);
+  });
   $('#btnCloseSuggest').addEventListener('click', () => openDrawer(false));
   $('#drawerScrim').addEventListener('click', () => openDrawer(false));
   $('#suggestSearch').addEventListener('input', renderSuggestions);
@@ -576,7 +823,6 @@ function wireEvents() {
   });
 
   $('#btnExport').addEventListener('click', exportCard);
-  $('#btnExportPhotos').addEventListener('click', exportCollage);
   $('#btnBackup').addEventListener('click', backup);
   $('#btnRestoreLabel').addEventListener('click', () => $('#btnRestore').click());
   $('#btnRestore').addEventListener('change', e => {
@@ -584,10 +830,13 @@ function wireEvents() {
     e.target.value = '';
   });
   $('#btnReset').addEventListener('click', async () => {
-    if (!confirm('Clear this card and start over? Photos and notes will be deleted.')) return;
+    const ok = await ask('This clears the whole card and starts over. Your goals, photos and notes will be deleted.',
+                         'Yes, clear it');
+    if (!ok) return;
     card = createCard(card.size);
     await saveCard(card, { immediate: true });
     syncHeaderInputs();
+    syncPanels();
     render();
     toast('Fresh card ready');
   });
@@ -598,6 +847,11 @@ function wireEvents() {
   $('#tileModal').addEventListener('click', e => {
     if (e.target === $('#tileModal')) closeEditor();
   });
+  $('#btnTileSuggest').addEventListener('click', () => {
+    drawerTarget = activeIndex;
+    openDrawer(true);
+  });
+  $('#btnTileRandom').addEventListener('click', randomiseActiveTile);
   $('#tileDone').addEventListener('change', () => {
     if ($('#tileDone').checked && !$('#tileDate').value) $('#tileDate').value = todayISO();
     syncDateField();
@@ -637,23 +891,40 @@ function wireEvents() {
     if (file && activeIndex !== null) attachPhoto(activeIndex, file);
   });
 
+  $('#btnCloseShare').addEventListener('click', closeShare);
+  $('#shareModal').addEventListener('click', e => {
+    if (e.target === $('#shareModal')) closeShare();
+  });
+
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (!$('#tileModal').hidden) closeEditor();
+    if (!$('#askModal').hidden) $('#askCancel').click();
+    else if (!$('#shareModal').hidden) closeShare();
     else if ($('#suggestPanel').classList.contains('open')) openDrawer(false);
+    else if (!$('#tileModal').hidden) closeEditor();
   });
 
   window.addEventListener('beforeunload', () => flushSave());
 }
 
+/* storage.js calls this when a save fails — usually localStorage filling up
+   with photos on a copy opened straight from the filesystem. */
+function onStorageError(err) {
+  const full = err && /quota/i.test(err.name + ' ' + err.message);
+  toast(full
+    ? 'Storage is full — remove a photo, or use Backup to save your card'
+    : 'Could not save — use Backup to keep your card safe');
+}
+
 async function init() {
-  paintSparkles();
+  paintConfetti();
   buildCategorySelect();
   buildCategoryChips();
   const saved = await loadCard();
   card = saved && Array.isArray(saved.tiles) ? saved : createCard(5);
   card.tiles = card.tiles.map(t => makeTile(t));
   syncHeaderInputs();
+  syncPanels();
   render();
   wireEvents();
   if (!saved) persist();
