@@ -5,7 +5,12 @@ proves it, and export the whole thing as a shareable PNG.
 
 No build step, no dependencies, no accounts. Everything lives in your browser.
 
-## Running it
+**Play it here: <https://radjrad.github.io/newyear-bingo/>**
+
+Served by GitHub Pages from `main`, so anything merged there is live within a
+minute or two.
+
+## Running it locally
 
 From the project directory:
 
