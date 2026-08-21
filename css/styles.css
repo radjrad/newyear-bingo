@@ -486,14 +486,44 @@ main { max-width: 1140px; margin: 0 auto; }
   50%      { transform: scale(1.05); }
 }
 
-/* While armed, the pointer becomes a little red dauber (hotspot on its ink
-   dot) and goal tiles jiggle to say "tap me"; empty tiles sit it out. */
+/* While armed, goal tiles jiggle to say "tap me". On mouse machines the
+   real cursor disappears over the board and the life-size dauber below
+   follows the pointer instead. */
 body.stamping .tile:not(.empty):not(.free) {
-  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g transform='rotate(-30 16 16)'><rect x='13' y='1' width='8' height='8' rx='2.5' fill='%230e1a5c'/><rect x='11' y='7' width='12' height='13' rx='3' fill='%23ff3b30'/><path d='M9 19 h16 v4 a3 3 0 0 1 -3 3 h-10 a3 3 0 0 1 -3 -3 z' fill='%23d81f16'/></g><circle cx='7' cy='28' r='3.4' fill='%23ff3b30' opacity='0.9'/></svg>") 7 28, pointer;
   animation: tile-jiggle 1.3s ease-in-out infinite;
 }
-body.stamping .tile.empty,
-body.stamping .tile.free { cursor: not-allowed; }
+@media (pointer: fine) {
+  body.stamping .grid, body.stamping .grid .tile { cursor: none; }
+}
+
+/* The full-size dauber that tracks the mouse — its foam pad is about the
+   size of the mark it leaves. The ink tip (75px, 175px in element pixels)
+   is the point that lands on the pointer; the resting tilt rotates around
+   that tip so aiming stays true. */
+#dauber {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 80;
+  width: 150px;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 12px rgba(14, 26, 92, 0.45));
+  will-change: transform;
+}
+#dauber svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: rotate(-14deg);
+  transform-origin: 75px 175px;
+}
+#dauber.pressing svg { animation: dauber-press 0.3s cubic-bezier(0.3, 1.4, 0.5, 1); }
+@keyframes dauber-press {
+  0%   { transform: rotate(-14deg); }
+  38%  { transform: rotate(-3deg) translateY(13px) scale(0.93); }
+  70%  { transform: rotate(-17deg) translateY(-5px); }
+  100% { transform: rotate(-14deg); }
+}
 body.stamping .tile:nth-child(2n)  { animation-delay: 0.18s; }
 body.stamping .tile:nth-child(3n)  { animation-delay: 0.33s; }
 body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); animation: none; }
@@ -503,7 +533,9 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn-stamper.active, body.stamping .tile { animation: none !important; }
+  .btn-stamper.active, body.stamping .tile,
+  .tile.just-stamped, #dauber.pressing svg { animation: none !important; }
+  .splat { display: none; }
 }
 
 /* Corner ✎ badge — the editor's door now that tapping the tile stamps it. */
@@ -545,6 +577,34 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
   pointer-events: none;
 }
 .tile.just-stamped .stamp { animation: stampDown 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+
+/* The whole tile takes the hit: a quick squash, a rebound, and a settle. */
+.tile.just-stamped { animation: tile-thud 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes tile-thud {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.88) rotate(-1.6deg); }
+  62%  { transform: scale(1.07) rotate(1deg); }
+  100% { transform: scale(1); }
+}
+
+/* Ink ring that splashes out from under a fresh stamp. */
+.splat {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 86%;
+  height: 86%;
+  border: 6px solid rgba(216, 31, 22, 0.75);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.3);
+  pointer-events: none;
+  animation: splat 0.55s ease-out 0.12s forwards;
+}
+@keyframes splat {
+  0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; border-width: 7px; }
+  100% { transform: translate(-50%, -50%) scale(1.45); opacity: 0; border-width: 1px; }
+}
 
 @keyframes stampDown {
   0%   { transform: translate(-50%, -50%) scale(2.5) rotate(calc(var(--rot, -12deg) - 30deg)); opacity: 0; }

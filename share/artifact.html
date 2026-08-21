@@ -489,14 +489,44 @@ main { max-width: 1140px; margin: 0 auto; }
   50%      { transform: scale(1.05); }
 }
 
-/* While armed, the pointer becomes a little red dauber (hotspot on its ink
-   dot) and goal tiles jiggle to say "tap me"; empty tiles sit it out. */
+/* While armed, goal tiles jiggle to say "tap me". On mouse machines the
+   real cursor disappears over the board and the life-size dauber below
+   follows the pointer instead. */
 body.stamping .tile:not(.empty):not(.free) {
-  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g transform='rotate(-30 16 16)'><rect x='13' y='1' width='8' height='8' rx='2.5' fill='%230e1a5c'/><rect x='11' y='7' width='12' height='13' rx='3' fill='%23ff3b30'/><path d='M9 19 h16 v4 a3 3 0 0 1 -3 3 h-10 a3 3 0 0 1 -3 -3 z' fill='%23d81f16'/></g><circle cx='7' cy='28' r='3.4' fill='%23ff3b30' opacity='0.9'/></svg>") 7 28, pointer;
   animation: tile-jiggle 1.3s ease-in-out infinite;
 }
-body.stamping .tile.empty,
-body.stamping .tile.free { cursor: not-allowed; }
+@media (pointer: fine) {
+  body.stamping .grid, body.stamping .grid .tile { cursor: none; }
+}
+
+/* The full-size dauber that tracks the mouse — its foam pad is about the
+   size of the mark it leaves. The ink tip (75px, 175px in element pixels)
+   is the point that lands on the pointer; the resting tilt rotates around
+   that tip so aiming stays true. */
+#dauber {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 80;
+  width: 150px;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 12px rgba(14, 26, 92, 0.45));
+  will-change: transform;
+}
+#dauber svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: rotate(-14deg);
+  transform-origin: 75px 175px;
+}
+#dauber.pressing svg { animation: dauber-press 0.3s cubic-bezier(0.3, 1.4, 0.5, 1); }
+@keyframes dauber-press {
+  0%   { transform: rotate(-14deg); }
+  38%  { transform: rotate(-3deg) translateY(13px) scale(0.93); }
+  70%  { transform: rotate(-17deg) translateY(-5px); }
+  100% { transform: rotate(-14deg); }
+}
 body.stamping .tile:nth-child(2n)  { animation-delay: 0.18s; }
 body.stamping .tile:nth-child(3n)  { animation-delay: 0.33s; }
 body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); animation: none; }
@@ -506,7 +536,9 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn-stamper.active, body.stamping .tile { animation: none !important; }
+  .btn-stamper.active, body.stamping .tile,
+  .tile.just-stamped, #dauber.pressing svg { animation: none !important; }
+  .splat { display: none; }
 }
 
 /* Corner ✎ badge — the editor's door now that tapping the tile stamps it. */
@@ -548,6 +580,34 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
   pointer-events: none;
 }
 .tile.just-stamped .stamp { animation: stampDown 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+
+/* The whole tile takes the hit: a quick squash, a rebound, and a settle. */
+.tile.just-stamped { animation: tile-thud 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes tile-thud {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.88) rotate(-1.6deg); }
+  62%  { transform: scale(1.07) rotate(1deg); }
+  100% { transform: scale(1); }
+}
+
+/* Ink ring that splashes out from under a fresh stamp. */
+.splat {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 86%;
+  height: 86%;
+  border: 6px solid rgba(216, 31, 22, 0.75);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.3);
+  pointer-events: none;
+  animation: splat 0.55s ease-out 0.12s forwards;
+}
+@keyframes splat {
+  0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; border-width: 7px; }
+  100% { transform: translate(-50%, -50%) scale(1.45); opacity: 0; border-width: 1px; }
+}
 
 @keyframes stampDown {
   0%   { transform: translate(-50%, -50%) scale(2.5) rotate(calc(var(--rot, -12deg) - 30deg)); opacity: 0; }
@@ -1122,6 +1182,20 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
       <button id="btnSaveImage" class="btn btn-yellow">⬇︎ Save to my device</button>
     </div>
   </div>
+</div>
+
+<!-- The big dauber that follows the mouse while stamp mode is armed -->
+<div id="dauber" hidden aria-hidden="true">
+  <svg viewBox="0 0 96 128" width="110" xmlns="http://www.w3.org/2000/svg">
+    <rect x="34" y="4" width="28" height="16" rx="6" fill="#0e1a5c"/>
+    <rect x="28" y="16" width="40" height="48" rx="10" fill="#ff3b30"/>
+    <rect x="28" y="34" width="40" height="12" fill="#ffffff" opacity="0.92"/>
+    <path fill="#d81f16" d="M48 36.2 L50.6 41.5 L56.4 42 L52 45.8 L53.4 51.4 L48 48.4 L42.6 51.4 L44 45.8 L39.6 42 L45.4 41.5 Z"/>
+    <rect x="24" y="62" width="48" height="10" rx="4" fill="#d81f16"/>
+    <path d="M30 72 L66 72 L78 100 L18 100 Z" fill="#d81f16"/>
+    <ellipse cx="48" cy="100" rx="30" ry="10" fill="#ff3b30"/>
+    <ellipse cx="48" cy="112" rx="26" ry="6" fill="#ff3b30" opacity="0.9"/>
+  </svg>
 </div>
 
 <div id="toast" class="toast" hidden></div>
@@ -2073,7 +2147,12 @@ function render() {
     wireTileDrop(el, i);
     grid.appendChild(el);
 
-    if (freshStamps.has(i)) burstConfetti(el);
+    if (freshStamps.has(i)) {
+      const splat = document.createElement('span');
+      splat.className = 'splat';
+      el.appendChild(splat);
+      burstConfetti(el);
+    }
   });
 
   freshStamps.clear();
@@ -2089,19 +2168,27 @@ function render() {
   updateSetupSummary();
 }
 
-/* Little burst of paper bits when a tile gets stamped. */
+/* Burst of paper bits when a tile gets stamped — squares, dots and stars. */
+const STAR_CLIP = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+
 function burstConfetti(el) {
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 18; i++) {
     const bit = document.createElement('span');
     bit.className = 'pop';
-    const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.4;
-    const dist = 26 + Math.random() * 26;
+    const angle = (Math.PI * 2 * i) / 18 + Math.random() * 0.4;
+    const dist = 30 + Math.random() * 38;
+    const size = 7 + Math.random() * 7;
+    bit.style.width = `${size}px`;
+    bit.style.height = `${size}px`;
+    const shape = i % 3;
+    if (shape === 0) bit.style.borderRadius = '50%';
+    else if (shape === 1) bit.style.clipPath = STAR_CLIP;
     bit.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
     bit.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
     bit.style.background = POP_COLORS[i % POP_COLORS.length];
-    bit.style.animationDelay = `${Math.random() * 0.08}s`;
+    bit.style.animationDelay = `${Math.random() * 0.1}s`;
     el.appendChild(bit);
-    setTimeout(() => bit.remove(), 900);
+    setTimeout(() => bit.remove(), 1000);
   }
 }
 
@@ -2148,6 +2235,26 @@ function maybeAutoCollapseSetup() {
 
 /* ---------- Stamping ---------- */
 
+/* On mouse machines the armed cursor is a life-size dauber element that
+   follows the pointer; its ink tip sits exactly on the click point. */
+const FINE_POINTER = matchMedia('(pointer: fine)').matches;
+const DAUBER_TIP = { x: 75, y: 175 };   // element pixels, matches the CSS note
+
+function moveDauber(e) {
+  const d = $('#dauber');
+  d.style.transform = `translate(${e.clientX - DAUBER_TIP.x}px, ${e.clientY - DAUBER_TIP.y}px)`;
+  // Only show it while hovering the board, so buttons keep a normal cursor.
+  d.hidden = !e.target.closest || !e.target.closest('.grid');
+}
+
+function pressDauber() {
+  const d = $('#dauber');
+  if (d.hidden) return;
+  d.classList.remove('pressing');
+  void d.offsetWidth;               // restart the animation
+  d.classList.add('pressing');
+}
+
 /* The stamper button arms the board for a stamping spree — tiles jiggle and
    every click stamps. A plain tap on a goal tile stamps it too. */
 function setStampMode(on) {
@@ -2157,6 +2264,14 @@ function setStampMode(on) {
   btn.classList.toggle('active', on);
   btn.setAttribute('aria-pressed', String(on));
   $('#stampModeLabel').textContent = on ? 'Done stamping' : 'Stamp!';
+  if (FINE_POINTER) {
+    if (on) {
+      document.addEventListener('pointermove', moveDauber);
+    } else {
+      document.removeEventListener('pointermove', moveDauber);
+      $('#dauber').hidden = true;
+    }
+  }
   if (on) toast('Stamp mode! Tap every goal you finished 🔴');
 }
 
@@ -2183,6 +2298,7 @@ function toggleStamp(i) {
   if (tile.done) {
     tile.doneAt = tile.doneAt || todayISO();
     freshStamps.add(i);
+    if (stampMode) pressDauber();
   } else {
     tile.doneAt = '';
   }
