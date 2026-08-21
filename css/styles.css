@@ -505,6 +505,32 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
   .btn-stamper.active, body.stamping .tile { animation: none !important; }
 }
 
+/* Corner ✎ badge — the editor's door now that tapping the tile stamps it. */
+.tile-edit {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 5;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 2px solid var(--navy);
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--navy);
+  box-shadow: 0 2px 0 var(--navy);
+  cursor: pointer;
+  opacity: 0.9;
+}
+.tile-edit:hover { background: var(--yellow); opacity: 1; }
+.tile-edit:focus-visible { outline: 3px dashed var(--red); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .tile-edit { width: 22px; height: 22px; font-size: 11px; top: 2px; right: 2px; }
+}
+
 /* ---------- The stamp ---------- */
 .tile .stamp {
   position: absolute;

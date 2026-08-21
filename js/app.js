@@ -240,7 +240,23 @@ function render() {
     el.setAttribute('aria-label',
       `${tile.free ? 'Free space' : tile.text || 'Empty tile'}${tile.done ? ', completed' : ''}`);
 
+    // Tap-to-stamp: the tile itself is the stamper; the ✎ badge edits.
     el.addEventListener('click', () => handleTileClick(i));
+    if (!tile.free) {
+      const edit = document.createElement('span');
+      edit.className = 'tile-edit';
+      edit.setAttribute('role', 'button');
+      edit.setAttribute('tabindex', '0');
+      edit.setAttribute('aria-label', 'Edit this tile');
+      edit.title = 'Edit this tile';
+      edit.textContent = '✎';
+      const openIt = e => { e.stopPropagation(); openEditor(i); };
+      edit.addEventListener('click', openIt);
+      edit.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') openIt(e);
+      });
+      el.appendChild(edit);
+    }
     wireTileDrop(el, i);
     grid.appendChild(el);
 
@@ -322,9 +338,10 @@ function maybeAutoCollapseSetup() {
   toast('Card is full — setup tucked away 👌');
 }
 
-/* ---------- Stamp mode ---------- */
+/* ---------- Stamping ---------- */
 
-/* The stamper button arms the board: clicks stamp goals instead of editing. */
+/* The stamper button arms the board for a stamping spree — tiles jiggle and
+   every click stamps. A plain tap on a goal tile stamps it too. */
 function setStampMode(on) {
   stampMode = on;
   document.body.classList.toggle('stamping', on);
@@ -337,16 +354,16 @@ function setStampMode(on) {
 
 function handleTileClick(i) {
   const tile = card.tiles[i];
-  if (!stampMode) {
-    openEditor(i);
-    return;
-  }
   if (tile.free) {
     toast('That one is free — it counts automatically 🎁');
     return;
   }
   if (!tile.text) {
-    toast('Nothing to stamp here yet');
+    if (stampMode) {
+      toast('Nothing to stamp here yet');
+    } else {
+      openEditor(i);
+    }
     return;
   }
   toggleStamp(i);
