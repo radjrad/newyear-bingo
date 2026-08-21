@@ -260,7 +260,12 @@ function render() {
     wireTileDrop(el, i);
     grid.appendChild(el);
 
-    if (freshStamps.has(i)) burstConfetti(el);
+    if (freshStamps.has(i)) {
+      const splat = document.createElement('span');
+      splat.className = 'splat';
+      el.appendChild(splat);
+      burstConfetti(el);
+    }
   });
 
   freshStamps.clear();
@@ -276,19 +281,27 @@ function render() {
   updateSetupSummary();
 }
 
-/* Little burst of paper bits when a tile gets stamped. */
+/* Burst of paper bits when a tile gets stamped — squares, dots and stars. */
+const STAR_CLIP = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+
 function burstConfetti(el) {
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 18; i++) {
     const bit = document.createElement('span');
     bit.className = 'pop';
-    const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.4;
-    const dist = 26 + Math.random() * 26;
+    const angle = (Math.PI * 2 * i) / 18 + Math.random() * 0.4;
+    const dist = 30 + Math.random() * 38;
+    const size = 7 + Math.random() * 7;
+    bit.style.width = `${size}px`;
+    bit.style.height = `${size}px`;
+    const shape = i % 3;
+    if (shape === 0) bit.style.borderRadius = '50%';
+    else if (shape === 1) bit.style.clipPath = STAR_CLIP;
     bit.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
     bit.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
     bit.style.background = POP_COLORS[i % POP_COLORS.length];
-    bit.style.animationDelay = `${Math.random() * 0.08}s`;
+    bit.style.animationDelay = `${Math.random() * 0.1}s`;
     el.appendChild(bit);
-    setTimeout(() => bit.remove(), 900);
+    setTimeout(() => bit.remove(), 1000);
   }
 }
 
@@ -335,6 +348,26 @@ function maybeAutoCollapseSetup() {
 
 /* ---------- Stamping ---------- */
 
+/* On mouse machines the armed cursor is a life-size dauber element that
+   follows the pointer; its ink tip sits exactly on the click point. */
+const FINE_POINTER = matchMedia('(pointer: fine)').matches;
+const DAUBER_TIP = { x: 75, y: 175 };   // element pixels, matches the CSS note
+
+function moveDauber(e) {
+  const d = $('#dauber');
+  d.style.transform = `translate(${e.clientX - DAUBER_TIP.x}px, ${e.clientY - DAUBER_TIP.y}px)`;
+  // Only show it while hovering the board, so buttons keep a normal cursor.
+  d.hidden = !e.target.closest || !e.target.closest('.grid');
+}
+
+function pressDauber() {
+  const d = $('#dauber');
+  if (d.hidden) return;
+  d.classList.remove('pressing');
+  void d.offsetWidth;               // restart the animation
+  d.classList.add('pressing');
+}
+
 /* The stamper button arms the board for a stamping spree — tiles jiggle and
    every click stamps. A plain tap on a goal tile stamps it too. */
 function setStampMode(on) {
@@ -344,6 +377,14 @@ function setStampMode(on) {
   btn.classList.toggle('active', on);
   btn.setAttribute('aria-pressed', String(on));
   $('#stampModeLabel').textContent = on ? 'Done stamping' : 'Stamp!';
+  if (FINE_POINTER) {
+    if (on) {
+      document.addEventListener('pointermove', moveDauber);
+    } else {
+      document.removeEventListener('pointermove', moveDauber);
+      $('#dauber').hidden = true;
+    }
+  }
   if (on) toast('Stamp mode! Tap every goal you finished 🔴');
 }
 
@@ -370,6 +411,7 @@ function toggleStamp(i) {
   if (tile.done) {
     tile.doneAt = tile.doneAt || todayISO();
     freshStamps.add(i);
+    if (stampMode) pressDauber();
   } else {
     tile.doneAt = '';
   }
