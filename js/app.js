@@ -239,7 +239,23 @@ function render() {
     el.setAttribute('aria-label',
       `${tile.free ? 'Free space' : tile.text || 'Empty tile'}${tile.done ? ', completed' : ''}`);
 
-    el.addEventListener('click', () => openEditor(i));
+    // Tap-to-stamp: the tile itself is the stamper; the ✎ badge edits.
+    el.addEventListener('click', () => handleTileClick(i));
+    if (!tile.free) {
+      const edit = document.createElement('span');
+      edit.className = 'tile-edit';
+      edit.setAttribute('role', 'button');
+      edit.setAttribute('tabindex', '0');
+      edit.setAttribute('aria-label', 'Edit this tile');
+      edit.title = 'Edit this tile';
+      edit.textContent = '✎';
+      const openIt = e => { e.stopPropagation(); openEditor(i); };
+      edit.addEventListener('click', openIt);
+      edit.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') openIt(e);
+      });
+      el.appendChild(edit);
+    }
     wireTileDrop(el, i);
     grid.appendChild(el);
 
@@ -319,6 +335,35 @@ function maybeAutoCollapseSetup() {
   setPanel('#setupPanel', true);
   persist();
   toast('Card is full — setup tucked away 👌');
+}
+
+/* ---------- Tap-to-stamp ---------- */
+
+/* A tap on a goal tile stamps or un-stamps it; empty tiles open the editor. */
+function handleTileClick(i) {
+  const tile = card.tiles[i];
+  if (tile.free) {
+    toast('That one is free — it counts automatically 🎁');
+    return;
+  }
+  if (!tile.text) {
+    openEditor(i);
+    return;
+  }
+  toggleStamp(i);
+}
+
+function toggleStamp(i) {
+  const tile = card.tiles[i];
+  tile.done = !tile.done;
+  if (tile.done) {
+    tile.doneAt = tile.doneAt || todayISO();
+    freshStamps.add(i);
+  } else {
+    tile.doneAt = '';
+  }
+  persist();
+  render();
 }
 
 /* ---------- Tile editor ---------- */
