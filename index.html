@@ -26,7 +26,6 @@
   <div class="scoreboard">
     <div class="score-badges">
       <span id="progressText" class="badge badge-count">0 of 25</span>
-      <span id="bingoCount" class="badge badge-bingo">No bingos yet</span>
     </div>
     <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
   </div>
@@ -67,10 +66,21 @@
 </section>
 
 <main>
+  <div class="stamp-bar">
+    <button id="btnStampMode" class="btn btn-stamper" aria-pressed="false">
+      <svg class="stamper-icon" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="38" y="8" width="24" height="26" rx="6" fill="currentColor"/>
+        <rect x="30" y="30" width="40" height="14" rx="5" fill="currentColor"/>
+        <path d="M20 62 C20 48 34 44 50 44 C66 44 80 48 80 62 L80 70 L20 70 Z" fill="currentColor"/>
+        <rect x="14" y="70" width="72" height="12" rx="5" fill="currentColor"/>
+      </svg>
+      <span id="stampModeLabel">Stamp!</span>
+    </button>
+  </div>
   <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
   <p class="hint">
-    <span class="hint-mouse">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</span>
-    <span class="hint-touch">Tap a tile to edit it, add a photo, or stamp it done.</span>
+    <span class="hint-mouse">Click a goal to stamp it done — click again to un-stamp. Use the ✎ to edit it or add a photo, or drag a photo straight onto a tile.</span>
+    <span class="hint-touch">Tap a goal to stamp it done — tap again to un-stamp. Use the ✎ to edit it or add a photo.</span>
   </p>
   <p class="credit">Created by: Jared B. Fries, 2026.</p>
 </main>

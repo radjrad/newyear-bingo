@@ -10,6 +10,7 @@ let activeIndex = null;        // tile currently open in the editor
 let activeCategory = 'All';
 let drawerTarget = null;       // tile a drawer pick should land on (null = first empty)
 let freshStamps = new Set();   // tiles that should play the stamp animation on next render
+let stampMode = false;         // stamper button armed: clicks stamp instead of edit
 
 /* ---------- Card model ---------- */
 
@@ -239,7 +240,23 @@ function render() {
     el.setAttribute('aria-label',
       `${tile.free ? 'Free space' : tile.text || 'Empty tile'}${tile.done ? ', completed' : ''}`);
 
-    el.addEventListener('click', () => openEditor(i));
+    // Tap-to-stamp: the tile itself is the stamper; the ✎ badge edits.
+    el.addEventListener('click', () => handleTileClick(i));
+    if (!tile.free) {
+      const edit = document.createElement('span');
+      edit.className = 'tile-edit';
+      edit.setAttribute('role', 'button');
+      edit.setAttribute('tabindex', '0');
+      edit.setAttribute('aria-label', 'Edit this tile');
+      edit.title = 'Edit this tile';
+      edit.textContent = '✎';
+      const openIt = e => { e.stopPropagation(); openEditor(i); };
+      edit.addEventListener('click', openIt);
+      edit.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') openIt(e);
+      });
+      el.appendChild(edit);
+    }
     wireTileDrop(el, i);
     grid.appendChild(el);
 
@@ -250,11 +267,6 @@ function render() {
 
   const s = stats();
   $('#progressText').textContent = `${s.done} of ${s.total}`;
-  const bingoBadge = $('#bingoCount');
-  bingoBadge.textContent = s.bingos
-    ? (s.bingos === 1 ? '1 BINGO! 🎉' : `${s.bingos} BINGOS! 🎉`)
-    : 'No bingos yet';
-  bingoBadge.classList.toggle('hot', s.bingos > 0);
   $('#progressFill').style.width = `${s.total ? (s.done / s.total) * 100 : 0}%`;
 
   document.querySelectorAll('.btn-size').forEach(b => {
@@ -319,6 +331,50 @@ function maybeAutoCollapseSetup() {
   setPanel('#setupPanel', true);
   persist();
   toast('Card is full — setup tucked away 👌');
+}
+
+/* ---------- Stamping ---------- */
+
+/* The stamper button arms the board for a stamping spree — tiles jiggle and
+   every click stamps. A plain tap on a goal tile stamps it too. */
+function setStampMode(on) {
+  stampMode = on;
+  document.body.classList.toggle('stamping', on);
+  const btn = $('#btnStampMode');
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', String(on));
+  $('#stampModeLabel').textContent = on ? 'Done stamping' : 'Stamp!';
+  if (on) toast('Stamp mode! Tap every goal you finished 🔴');
+}
+
+function handleTileClick(i) {
+  const tile = card.tiles[i];
+  if (tile.free) {
+    toast('That one is free — it counts automatically 🎁');
+    return;
+  }
+  if (!tile.text) {
+    if (stampMode) {
+      toast('Nothing to stamp here yet');
+    } else {
+      openEditor(i);
+    }
+    return;
+  }
+  toggleStamp(i);
+}
+
+function toggleStamp(i) {
+  const tile = card.tiles[i];
+  tile.done = !tile.done;
+  if (tile.done) {
+    tile.doneAt = tile.doneAt || todayISO();
+    freshStamps.add(i);
+  } else {
+    tile.doneAt = '';
+  }
+  persist();
+  render();
 }
 
 /* ---------- Tile editor ---------- */
@@ -822,6 +878,8 @@ function wireEvents() {
     persist();
   });
 
+  $('#btnStampMode').addEventListener('click', () => setStampMode(!stampMode));
+
   $('#btnSuggestions').addEventListener('click', () => {
     drawerTarget = null;
     openDrawer(true);
@@ -915,6 +973,7 @@ function wireEvents() {
     else if (!$('#shareModal').hidden) closeShare();
     else if ($('#suggestPanel').classList.contains('open')) openDrawer(false);
     else if (!$('#tileModal').hidden) closeEditor();
+    else if (stampMode) setStampMode(false);
   });
 
   window.addEventListener('beforeunload', () => flushSave());
