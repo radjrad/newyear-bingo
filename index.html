@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>New Year's Bingo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -68,7 +68,10 @@
 
 <main>
   <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
-  <p class="hint">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</p>
+  <p class="hint">
+    <span class="hint-mouse">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</span>
+    <span class="hint-touch">Tap a tile to edit it, add a photo, or stamp it done.</span>
+  </p>
 </main>
 
 <!-- Suggestions drawer -->
@@ -111,8 +114,9 @@
       <div id="tilePhotoDrop" class="photo-drop">
         <img id="tilePhotoPreview" alt="" hidden>
         <div id="tilePhotoEmpty" class="photo-empty">
-          <span>Drop a photo here, or</span>
-          <button id="btnPickPhoto" type="button" class="btn btn-small">Choose file</button>
+          <span class="hint-mouse">Drop a photo here, or</span>
+          <span class="hint-touch">Add a photo from your camera roll</span>
+          <button id="btnPickPhoto" type="button" class="btn btn-small">Choose photo</button>
         </div>
         <button id="btnRemovePhoto" type="button" class="btn btn-small btn-danger" hidden>Remove photo</button>
       </div>

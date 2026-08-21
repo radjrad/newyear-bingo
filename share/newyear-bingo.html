@@ -53,14 +53,28 @@ body {
   font-family: var(--font-ui);
   font-weight: 600;
   color: var(--ink);
+  background: #4f8bff;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The gradient lives on a fixed layer of its own: background-attachment:
+   fixed is ignored on iOS Safari, which left the backdrop scrolling and
+   stretching to the full document height on phones. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
     radial-gradient(900px 520px at 12% -8%, #ffe36e 0%, transparent 55%),
     radial-gradient(800px 500px at 92% 4%, #ff7ec4 0%, transparent 52%),
     linear-gradient(160deg, #29d3e6 0%, #4f8bff 46%, #9b5cff 100%);
-  background-attachment: fixed;
-  min-height: 100%;
-  -webkit-font-smoothing: antialiased;
 }
+
+/* Kill the double-tap-to-zoom delay and accidental pinch on controls. */
+button, input, select, textarea { touch-action: manipulation; }
 
 /* ---------- Geometric backdrop ---------- */
 .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
@@ -214,7 +228,11 @@ header, section, main { position: relative; z-index: 1; }
   transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s ease;
   white-space: nowrap;
 }
-.btn:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 5px 0 var(--navy); }
+/* Hover flourishes only where a real pointer hovers — on touch screens they
+   stick to whatever was tapped last. */
+@media (hover: hover) {
+  .btn:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 5px 0 var(--navy); }
+}
 .btn:active { transform: translateY(4px); box-shadow: 0 0 0 var(--navy); }
 .btn:focus-visible { outline: 3px dashed var(--navy); outline-offset: 3px; }
 
@@ -224,7 +242,9 @@ header, section, main { position: relative; z-index: 1; }
 .btn-danger { background: var(--red); color: #fff; }
 .btn-big    { font-size: 19px; padding: 12px 22px; }
 .btn-small  { font-size: 14px; padding: 7px 12px; border-radius: 10px; box-shadow: 0 3px 0 var(--navy); }
-.btn-small:hover { box-shadow: 0 4px 0 var(--navy); }
+@media (hover: hover) {
+  .btn-small:hover { box-shadow: 0 4px 0 var(--navy); }
+}
 .btn-small:active { transform: translateY(3px); box-shadow: 0 0 0 var(--navy); }
 .btn-size.active { background: var(--red); color: #fff; }
 
@@ -367,7 +387,9 @@ main { max-width: 1140px; margin: 0 auto; }
   overflow: hidden;
   transition: transform 0.14s cubic-bezier(0.2, 1.5, 0.4, 1), box-shadow 0.14s ease;
 }
-.tile:hover { transform: translateY(-3px) rotate(-1deg); box-shadow: 0 5px 0 var(--navy); z-index: 3; }
+@media (hover: hover) {
+  .tile:hover { transform: translateY(-3px) rotate(-1deg); box-shadow: 0 5px 0 var(--navy); z-index: 3; }
+}
 .tile:focus-visible { outline: 3px dashed var(--red); outline-offset: 2px; }
 
 .tile .tile-text {
@@ -494,6 +516,13 @@ main { max-width: 1140px; margin: 0 auto; }
   margin: 18px 0 0;
 }
 
+/* Touch screens get their own hint — you can't drag a photo onto a tile there. */
+.hint-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .hint-mouse { display: none; }
+  .hint-touch { display: inline; }
+}
+
 /* ---------- Drawer ---------- */
 .drawer {
   position: fixed;
@@ -558,7 +587,9 @@ main { max-width: 1140px; margin: 0 auto; }
   border: 2px solid var(--navy);
   cursor: pointer;
 }
-.chip:hover { background: var(--yellow); }
+@media (hover: hover) {
+  .chip:hover { background: var(--yellow); }
+}
 .chip.active { background: var(--red); color: #fff; }
 
 .suggest-list { display: flex; flex-direction: column; gap: 6px; padding-bottom: 40px; }
@@ -579,7 +610,9 @@ main { max-width: 1140px; margin: 0 auto; }
   gap: 10px;
   align-items: center;
 }
-.suggest-item:hover { background: var(--yellow); transform: translateY(-1px); }
+@media (hover: hover) {
+  .suggest-item:hover { background: var(--yellow); transform: translateY(-1px); }
+}
 .suggest-item:active { transform: translateY(3px); box-shadow: none; }
 .suggest-item[disabled] { opacity: 0.45; box-shadow: none; cursor: default; transform: none; }
 .suggest-item .s-cat {
@@ -748,7 +781,7 @@ main { max-width: 1140px; margin: 0 auto; }
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 70;
   padding: 11px 22px;
@@ -770,24 +803,67 @@ main { max-width: 1140px; margin: 0 auto; }
 }
 
 @media (max-width: 640px) {
-  .panel-body { gap: 7px; padding: 12px; }
-  .btn { font-size: 15px; padding: 9px 13px; }
+  .panel-body { gap: 8px; padding: 12px; }
+  .btn { font-size: 15px; padding: 11px 13px; }
   .btn-big { font-size: 16px; }
+
+  /* Buttons tile into full-width rows — bigger targets, no ragged wrapping. */
+  .panel-body > .btn { flex: 1 1 40%; }
+  .panel-body > .btn-big { flex-basis: 100%; }
+  .size-group { flex: 1 1 100%; }
+  .size-group .btn-size { flex: 1 1 auto; }
+
+  .icon-btn { width: 38px; height: 38px; font-size: 18px; }
+
   .grid { gap: 5px; padding: 8px; border-width: 4px; }
   .tile { padding: 5px 4px; border-radius: 8px; border-width: 2px; font-size: 11px; gap: 2px; }
+  .grid[data-size="4"] .tile { font-size: 13px; }
+  .grid[data-size="3"] .tile { font-size: 15px; }
   .tile .tile-text { -webkit-line-clamp: 4; }
   .panel-sub { display: none; }
   .scoreboard { flex-basis: 100%; }
+
+  /* The header stacks: give the title and subtitle the full row instead of
+     the 64vw sliver that clipped longer subtitles. */
+  .plaque { flex: 1 1 100%; }
+  .plaque-fields { flex: 1 1 auto; }
+  .title-input, .subtitle-input { width: 100%; min-width: 0; }
+
+  /* Modals become bottom sheets: full width, thumb-reachable, and the
+     safe-area padding keeps buttons clear of the home indicator. */
+  .modal { padding: 0; place-items: end stretch; }
+  .modal-card,
+  .share-card,
+  .ask-card {
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    box-shadow: none;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Phone tiles are ~60px square, so long goals ellipsize rather than
    getting sliced mid-line. Tapping the tile still shows the full text. */
 @media (max-width: 460px) {
-  .tile { font-size: 9.4px; line-height: 1.2; }
+  .tile { font-size: 9.8px; line-height: 1.2; }
+  /* Fewer columns leave room for bigger type. */
+  .grid[data-size="4"] .tile { font-size: 12px; }
+  .grid[data-size="3"] .tile { font-size: 14px; }
   .tile .tile-cat { display: none; }
   .tile .tile-text { -webkit-line-clamp: 4; }
   /* Stamped tiles also carry a date line, so they get one line less. */
   .tile.done .tile-text { -webkit-line-clamp: 3; }
+}
+
+/* Small-viewport units track Safari's collapsing toolbars, so sheets and the
+   drawer never end behind them. Fallbacks above keep older browsers working. */
+@supports (height: 100dvh) {
+  .drawer { height: 100dvh; }
+  .modal-card { max-height: 92dvh; }
+  .share-image { max-height: 52dvh; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -855,7 +931,10 @@ main { max-width: 1140px; margin: 0 auto; }
 
 <main>
   <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
-  <p class="hint">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</p>
+  <p class="hint">
+    <span class="hint-mouse">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</span>
+    <span class="hint-touch">Tap a tile to edit it, add a photo, or stamp it done.</span>
+  </p>
 </main>
 
 <!-- Suggestions drawer -->
@@ -898,8 +977,9 @@ main { max-width: 1140px; margin: 0 auto; }
       <div id="tilePhotoDrop" class="photo-drop">
         <img id="tilePhotoPreview" alt="" hidden>
         <div id="tilePhotoEmpty" class="photo-empty">
-          <span>Drop a photo here, or</span>
-          <button id="btnPickPhoto" type="button" class="btn btn-small">Choose file</button>
+          <span class="hint-mouse">Drop a photo here, or</span>
+          <span class="hint-touch">Add a photo from your camera roll</span>
+          <button id="btnPickPhoto" type="button" class="btn btn-small">Choose photo</button>
         </div>
         <button id="btnRemovePhoto" type="button" class="btn btn-small btn-danger" hidden>Remove photo</button>
       </div>
@@ -1838,6 +1918,7 @@ const STAMP_SVG =
 function render() {
   const grid = $('#grid');
   grid.style.setProperty('--size', card.size);
+  grid.dataset.size = card.size;   // lets CSS scale tile type to the column count
   grid.innerHTML = '';
   const highlight = bingoIndexes();
 
@@ -1988,7 +2069,11 @@ function openEditor(i) {
   syncDateField();
   $('#tileModal').hidden = false;
   $('#tileModal').querySelector('.modal-card').scrollTop = 0;
-  setTimeout(() => $('#tileText').focus({ preventScroll: true }), 30);
+  // On touch screens focusing would pop the keyboard over half the sheet
+  // before the person has even decided what to change.
+  if (!isTouchScreen()) {
+    setTimeout(() => $('#tileText').focus({ preventScroll: true }), 30);
+  }
 }
 
 function closeEditor() {
@@ -2147,9 +2232,10 @@ function renderSuggestions() {
     (!query || s.text.toLowerCase().includes(query))
   );
 
+  const verb = isTouchScreen() ? 'Tap' : 'Click';
   $('#drawerNote').textContent = drawerTarget === null
-    ? 'Click a suggestion to drop it into the first empty tile.'
-    : 'Click a suggestion to use it for the tile you are editing.';
+    ? `${verb} a suggestion to drop it into the first empty tile.`
+    : `${verb} a suggestion to use it for the tile you are editing.`;
 
   list.innerHTML = '';
   if (!items.length) {
@@ -2398,12 +2484,18 @@ function zigzagSVG(color, w) {
     `stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
+function isTouchScreen() {
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
 function paintConfetti() {
   const wrap = $('.confetti');
   const colors = POP_COLORS.concat(['#ffffff', '#ffb400', '#2bd9c8']);
   const frag = document.createDocumentFragment();
 
-  for (let i = 0; i < 78; i++) {
+  // Phones get a lighter shower — 78 animated bits make older ones stutter.
+  const bits = window.matchMedia('(max-width: 640px)').matches ? 42 : 78;
+  for (let i = 0; i < bits; i++) {
     const bit = document.createElement('i');
     const shape = CONFETTI_SHAPES[Math.floor(Math.random() * CONFETTI_SHAPES.length)];
     const color = colors[Math.floor(Math.random() * colors.length)];

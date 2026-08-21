@@ -188,6 +188,7 @@ const STAMP_SVG =
 function render() {
   const grid = $('#grid');
   grid.style.setProperty('--size', card.size);
+  grid.dataset.size = card.size;   // lets CSS scale tile type to the column count
   grid.innerHTML = '';
   const highlight = bingoIndexes();
 
@@ -338,7 +339,11 @@ function openEditor(i) {
   syncDateField();
   $('#tileModal').hidden = false;
   $('#tileModal').querySelector('.modal-card').scrollTop = 0;
-  setTimeout(() => $('#tileText').focus({ preventScroll: true }), 30);
+  // On touch screens focusing would pop the keyboard over half the sheet
+  // before the person has even decided what to change.
+  if (!isTouchScreen()) {
+    setTimeout(() => $('#tileText').focus({ preventScroll: true }), 30);
+  }
 }
 
 function closeEditor() {
@@ -497,9 +502,10 @@ function renderSuggestions() {
     (!query || s.text.toLowerCase().includes(query))
   );
 
+  const verb = isTouchScreen() ? 'Tap' : 'Click';
   $('#drawerNote').textContent = drawerTarget === null
-    ? 'Click a suggestion to drop it into the first empty tile.'
-    : 'Click a suggestion to use it for the tile you are editing.';
+    ? `${verb} a suggestion to drop it into the first empty tile.`
+    : `${verb} a suggestion to use it for the tile you are editing.`;
 
   list.innerHTML = '';
   if (!items.length) {
@@ -748,12 +754,18 @@ function zigzagSVG(color, w) {
     `stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
+function isTouchScreen() {
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
 function paintConfetti() {
   const wrap = $('.confetti');
   const colors = POP_COLORS.concat(['#ffffff', '#ffb400', '#2bd9c8']);
   const frag = document.createDocumentFragment();
 
-  for (let i = 0; i < 78; i++) {
+  // Phones get a lighter shower — 78 animated bits make older ones stutter.
+  const bits = window.matchMedia('(max-width: 640px)').matches ? 42 : 78;
+  for (let i = 0; i < bits; i++) {
     const bit = document.createElement('i');
     const shape = CONFETTI_SHAPES[Math.floor(Math.random() * CONFETTI_SHAPES.length)];
     const color = colors[Math.floor(Math.random() * colors.length)];
