@@ -279,6 +279,58 @@ function render() {
   });
 
   updateSetupSummary();
+  checkBoardComplete(s);
+}
+
+/* ---------- Whole-board celebration ---------- */
+
+let boardWasComplete = null;   // null until the first render sets the baseline
+
+/* Fires the blowout only when the board CROSSES into fully-complete, so a
+   reload of an already-finished card stays calm. */
+function checkBoardComplete(s) {
+  const complete = s.total > 0 && s.done === s.total;
+  if (boardWasComplete === null) {
+    boardWasComplete = complete;
+    return;
+  }
+  if (complete && !boardWasComplete) celebrateBoard();
+  boardWasComplete = complete;
+}
+
+function celebrateBoard() {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  toast('WHOLE BOARD COMPLETE! 🏆');
+  if (reduced) return;
+
+  // Screen shake
+  document.body.classList.remove('mega-shake');
+  void document.body.offsetWidth;
+  document.body.classList.add('mega-shake');
+  setTimeout(() => document.body.classList.remove('mega-shake'), 900);
+
+  // Confetti rain from the top of the screen
+  const wrap = document.createElement('div');
+  wrap.className = 'celebration';
+  for (let i = 0; i < 140; i++) {
+    const bit = document.createElement('span');
+    bit.className = 'rain';
+    const size = 8 + Math.random() * 12;
+    bit.style.width = `${size}px`;
+    bit.style.height = `${Math.random() < 0.35 ? size * 0.45 : size}px`;
+    const shape = i % 3;
+    if (shape === 0) bit.style.borderRadius = '50%';
+    else if (shape === 1) bit.style.clipPath = STAR_CLIP;
+    bit.style.left = `${Math.random() * 100}%`;
+    bit.style.background = POP_COLORS[i % POP_COLORS.length];
+    bit.style.setProperty('--drift', `${(Math.random() - 0.5) * 240}px`);
+    bit.style.setProperty('--spin', `${540 + Math.random() * 720}deg`);
+    bit.style.animationDuration = `${2.2 + Math.random() * 1.8}s`;
+    bit.style.animationDelay = `${Math.random() * 0.9}s`;
+    wrap.appendChild(bit);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 5200);
 }
 
 /* Burst of paper bits when a tile gets stamped — squares, dots and stars. */
@@ -351,7 +403,7 @@ function maybeAutoCollapseSetup() {
 /* On mouse machines the armed cursor is a life-size dauber element that
    follows the pointer; its ink tip sits exactly on the click point. */
 const FINE_POINTER = matchMedia('(pointer: fine)').matches;
-const DAUBER_TIP = { x: 75, y: 175 };   // element pixels, matches the CSS note
+const DAUBER_TIP = { x: 37.5, y: 87.5 };   // element pixels, matches the CSS note
 
 function moveDauber(e) {
   const d = $('#dauber');
@@ -412,11 +464,20 @@ function toggleStamp(i) {
     tile.doneAt = tile.doneAt || todayISO();
     freshStamps.add(i);
     if (stampMode) pressDauber();
-  } else {
-    tile.doneAt = '';
+    persist();
+    render();
+    return;
   }
+  tile.doneAt = '';
   persist();
-  render();
+  // Let the stamp peel off before the re-render removes it.
+  const el = document.querySelector(`.tile[data-index="${i}"]`);
+  if (el && el.querySelector('.stamp') && !el.classList.contains('just-unstamped')) {
+    el.classList.add('just-unstamped');
+    setTimeout(render, 380);
+  } else {
+    render();
+  }
 }
 
 /* ---------- Tile editor ---------- */
