@@ -148,9 +148,19 @@ header, section, main { position: relative; z-index: 1; }
     -3px  0 0 var(--navy),  3px  0 0 var(--navy),
      0  6px 0 var(--red), 0 8px 0 var(--red-2);
 }
-.title-input::placeholder { color: rgba(255, 212, 41, 0.55); }
 .title-input:focus { outline: none; }
 .title-input:hover, .title-input:focus { transform: rotate(-1deg); }
+/* The title is a button now — tapping it flips the year, no keyboard. */
+button.title-input {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  text-align: left;
+  width: auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+button.title-input:focus-visible { outline: 3px dashed var(--yellow); outline-offset: 6px; }
 
 .subtitle-input {
   font-family: var(--font-ui);
@@ -234,6 +244,7 @@ header, section, main { position: relative; z-index: 1; }
 }
 .btn-small:active { transform: translateY(3px); box-shadow: 0 0 0 var(--navy); }
 .btn-size.active { background: var(--red); color: #fff; }
+.btn-ico { width: 18px; height: 18px; vertical-align: -3px; }
 
 .size-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .size-label {
@@ -389,6 +400,15 @@ main { max-width: 1140px; margin: 0 auto; }
   -webkit-box-orient: vertical;
   text-wrap: balance;
 }
+/* Every goal carries a short form for cramped grids; phones show it instead
+   of the ellipsized full text. */
+.tile .tile-text-short { display: none; }
+@media (max-width: 640px) {
+  .grid[data-size="4"] .tile-text-full,
+  .grid[data-size="5"] .tile-text-full { display: none; }
+  .grid[data-size="4"] .tile-text-short,
+  .grid[data-size="5"] .tile-text-short { display: -webkit-box; }
+}
 .tile .tile-cat {
   position: relative;
   z-index: 3;
@@ -467,7 +487,16 @@ main { max-width: 1140px; margin: 0 auto; }
   margin: 0 auto 12px;
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
+.btn-zoom {
+  font-size: 22px;
+  padding: 9px 16px;
+  border-radius: 99px;
+  line-height: 1;
+}
+.btn-zoom.active { background: var(--yellow); }
 .btn-stamper {
   display: inline-flex;
   align-items: center;
@@ -526,6 +555,16 @@ body.stamping .tile:not(.empty):not(.free) {
   70%  { transform: rotate(-17deg) translateY(-5px); }
   100% { transform: rotate(-14deg); }
 }
+
+/* Touch screens have no cursor, so a tap conjures the dauber over the tile:
+   it drops in from above, presses the stamp home, and lifts away. */
+#dauber.touch-press svg { animation: dauber-tap 0.6s cubic-bezier(0.3, 1.3, 0.5, 1) both; }
+@keyframes dauber-tap {
+  0%   { transform: rotate(-22deg) translateY(-52px) scale(1.08); opacity: 0; }
+  32%  { transform: rotate(-4deg) translateY(11px) scale(0.93); opacity: 1; }
+  60%  { transform: rotate(-16deg) translateY(-8px); opacity: 1; }
+  100% { transform: rotate(-14deg) translateY(-22px); opacity: 0; }
+}
 body.stamping .tile:nth-child(2n)  { animation-delay: 0.18s; }
 body.stamping .tile:nth-child(3n)  { animation-delay: 0.33s; }
 body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); animation: none; }
@@ -538,8 +577,9 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
   .btn-stamper.active, body.stamping .tile,
   .tile.just-stamped, .tile.just-unstamped,
   .tile.just-unstamped .stamp, #dauber.pressing svg,
-  body.mega-shake { animation: none !important; }
+  #dauber.touch-press svg, body.mega-shake { animation: none !important; }
   .splat, .celebration { display: none; }
+  #dauber.touch-press { display: none; }
 }
 
 /* Corner ✎ badge — the editor's door now that tapping the tile stamps it. */
@@ -809,6 +849,45 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
 }
 .share-card { width: min(680px, 100%); }
 .ask-card { width: min(440px, 100%); }
+
+/* Magnifier close-up: one goal, huge and readable */
+.zoom-card { width: min(480px, 100%); text-align: center; }
+.zoom-photo {
+  display: block;
+  width: 100%;
+  max-height: 34vh;
+  object-fit: contain;
+  border: var(--edge) solid var(--navy);
+  border-radius: 12px;
+  background: #eef2ff;
+  margin-bottom: 14px;
+}
+.zoom-cat {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--purple-2);
+  margin: 0 0 6px;
+}
+.zoom-text {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 6.4vw, 34px);
+  font-weight: 800;
+  line-height: 1.22;
+  color: var(--navy);
+  text-wrap: balance;
+  margin: 0 0 8px;
+}
+.zoom-date {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--teal-2);
+  min-height: 1.3em;
+  margin: 0 0 14px;
+}
 #askModal { z-index: 68; }
 .ask-text {
   font-family: var(--font-ui);
@@ -915,20 +994,7 @@ body.stamping .tile:not(.empty):not(.free):hover { transform: scale(1.04); anima
   border-radius: 12px;
   background: #eef2ff;
 }
-.share-hint {
-  font-family: var(--font-ui);
-  font-size: 15.5px;
-  font-weight: 600;
-  line-height: 1.5;
-  color: var(--navy);
-  background: #fff3bd;
-  border: 2px solid var(--navy);
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin: 14px 0;
-}
-.share-hint strong { font-weight: 800; }
-.share-actions { justify-content: flex-end; }
+.share-actions { justify-content: flex-end; margin-top: 14px; }
 
 /* ---------- Whole-board celebration ---------- */
 body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
@@ -1003,11 +1069,18 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
   .panel-sub { display: none; }
   .scoreboard { flex-basis: 100%; }
 
-  /* The header stacks: give the title and subtitle the full row instead of
-     the 64vw sliver that clipped longer subtitles. */
-  .plaque { flex: 1 1 100%; }
-  .plaque-fields { flex: 1 1 auto; }
-  .title-input, .subtitle-input { width: 100%; min-width: 0; }
+  /* The header stacks and centers: emoji on top, title, then name,
+     with the score badges centered underneath. */
+  .plaque { flex: 1 1 100%; flex-direction: column; text-align: center; gap: 4px; }
+  .plaque-fields { flex: 1 1 auto; align-items: center; width: 100%; }
+  .title-input, .subtitle-input { width: 100%; min-width: 0; text-align: center; }
+  .subtitle-input { width: min(340px, 86vw); }
+  .score-badges { justify-content: center; }
+
+  /* Full-width modal buttons — easier thumb targets. */
+  .modal-actions { gap: 8px; }
+  .modal-actions .btn { flex: 1 1 auto; }
+  .modal-actions .spacer { display: none; }
 
   /* Modals become bottom sheets: full width, thumb-reachable, and the
      safe-area padding keeps buttons clear of the home indicator. */
@@ -1059,8 +1132,8 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
   <div class="plaque">
     <span class="plaque-mark">🎉</span>
     <div class="plaque-fields">
-      <input id="cardTitle" class="title-input" maxlength="26" placeholder="2026 BINGO" aria-label="Card title">
-      <input id="cardSubtitle" class="subtitle-input" maxlength="52" placeholder="Name" aria-label="Whose card this is">
+      <button id="cardTitle" class="title-input" type="button" title="Tap to change the year">2026 BINGO</button>
+      <input id="cardSubtitle" class="subtitle-input" maxlength="52" placeholder="Name" aria-label="Whose card this is" enterkeyhint="done">
     </div>
   </div>
 
@@ -1081,6 +1154,7 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
   </button>
   <div class="panel-body" id="setupBody">
     <button id="btnSuggestions" class="btn btn-teal">✨ Suggestions</button>
+    <button id="btnCustomGoal" class="btn btn-yellow">✏️ Custom goal</button>
     <button id="btnFill" class="btn btn-purple">🎲 Fill empty tiles</button>
     <div class="size-group" role="group" aria-label="Grid size">
       <span class="size-label">Grid size</span>
@@ -1098,8 +1172,8 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
     <span class="chev" aria-hidden="true">▾</span>
   </button>
   <div class="panel-body" id="shareBody">
-    <button id="btnExport" class="btn btn-yellow btn-big">⬇︎ Download Bingo Card</button>
-    <button id="btnBackup" class="btn">💾 Backup</button>
+    <button id="btnExport" class="btn btn-yellow btn-big"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0l-4.2-4.2M12 13l4.2-4.2M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Download Bingo Card</button>
+    <button id="btnBackup" class="btn">💾 Save</button>
     <button id="btnRestoreLabel" class="btn">📂 Restore</button>
     <input id="btnRestore" type="file" accept="application/json" hidden>
     <button id="btnReset" class="btn btn-danger">♻️ Reset</button>
@@ -1117,6 +1191,7 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
       </svg>
       <span id="stampModeLabel">Stamp!</span>
     </button>
+    <button id="btnZoom" class="btn btn-zoom" aria-pressed="false" aria-label="Magnifier: tap a goal to read it big">🔍</button>
   </div>
   <div id="grid" class="grid" role="grid" aria-label="Bingo card"></div>
   <p class="hint">
@@ -1193,6 +1268,45 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
   </div>
 </div>
 
+<!-- Custom goal: adds to the card and to the reusable goal bank -->
+<div id="goalModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
+  <div class="modal-card ask-card">
+    <div class="modal-head">
+      <h2 id="goalModalTitle">Your own goal</h2>
+      <button id="btnCloseGoal" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+    <label class="field">
+      <span>Goal</span>
+      <textarea id="customGoalText" rows="2" maxlength="90" placeholder="What do you want to do this year?" enterkeyhint="done"></textarea>
+    </label>
+    <p class="drawer-note">It also gets saved under <strong>My goals</strong> in Suggestions, so it's there for future cards.</p>
+    <div class="modal-actions">
+      <button id="btnCancelGoal" class="btn">Cancel</button>
+      <span class="spacer"></span>
+      <button id="btnAddGoal" class="btn btn-yellow">Add to card</button>
+    </div>
+  </div>
+</div>
+
+<!-- Magnifier: one goal at a time, big and readable -->
+<div id="zoomModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="zoomTitle">
+  <div class="modal-card zoom-card">
+    <div class="modal-head">
+      <h2 id="zoomTitle">🔍 Close-up</h2>
+      <button id="btnCloseZoom" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+    <img id="zoomPhoto" class="zoom-photo" alt="" hidden>
+    <p id="zoomCat" class="zoom-cat"></p>
+    <p id="zoomText" class="zoom-text"></p>
+    <p id="zoomDate" class="zoom-date"></p>
+    <div class="modal-actions">
+      <button id="btnZoomEdit" class="btn">✎ Edit</button>
+      <span class="spacer"></span>
+      <button id="btnZoomStamp" class="btn btn-yellow btn-big">Stamp it!</button>
+    </div>
+  </div>
+</div>
+
 <!-- In-page confirm: browser confirm() is blocked inside embedded pages -->
 <div id="askModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="askTitle">
   <div class="modal-card ask-card">
@@ -1216,13 +1330,9 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
       <button id="btnCloseShare" class="icon-btn" aria-label="Close">✕</button>
     </div>
     <img id="shareImage" class="share-image" alt="Your finished bingo card">
-    <p class="share-hint">
-      <strong>On a phone:</strong> press and hold the picture, then choose Save or Share.<br>
-      <strong>On a computer:</strong> right-click it and choose “Save image as…”.
-    </p>
     <div class="modal-actions share-actions">
       <button id="btnShareNative" class="btn btn-teal" hidden>📲 Share…</button>
-      <button id="btnSaveImage" class="btn btn-yellow">⬇︎ Save to my device</button>
+      <button id="btnSaveImage" class="btn btn-yellow"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0l-4.2-4.2M12 13l4.2-4.2M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Save to my device</button>
     </div>
   </div>
 </div>
@@ -1244,113 +1354,121 @@ body.mega-shake { animation: mega-shake 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.9
 <div id="toast" class="toast" hidden></div>
 <script>
 /* ===== js/suggestions.js ===== */
-/* Suggestion library for New Year's bingo tiles, grouped by category. */
+/* Suggestion library for New Year's bingo tiles, grouped by category.
+   Each goal carries a hand-written short form (s) that fits a phone-size
+   tile without ellipsis; the full text (t) shows everywhere roomier. */
 const SUGGESTIONS = {
   "Adventure": [
-    "Watch a sunrise",
-    "Visit a town I've never been to",
-    "Take a spontaneous weekend trip",
-    "Swim in an ocean, lake, or river",
-    "Go camping under the stars",
-    "Hike a trail that's new to me",
-    "Ride a train somewhere",
-    "See a place on my list for years",
-    "Take a road trip with no fixed plan",
-    "Watch a meteor shower"
+    { t: "Watch a sunrise", s: "Sunrise" },
+    { t: "Visit a town I've never been to", s: "New town" },
+    { t: "Take a spontaneous weekend trip", s: "Weekend trip" },
+    { t: "Swim in an ocean, lake, or river", s: "Wild swim" },
+    { t: "Go camping under the stars", s: "Camp out" },
+    { t: "Hike a trail that's new to me", s: "New hike" },
+    { t: "Ride a train somewhere", s: "Train ride" },
+    { t: "See a place on my list for years", s: "Bucket-list spot" },
+    { t: "Take a road trip with no fixed plan", s: "Road trip" },
+    { t: "Watch a meteor shower", s: "Meteor shower" }
   ],
   "Health & Movement": [
-    "Run a 5K",
-    "Try a new workout class",
-    "Walk 10,000 steps for a week straight",
-    "Stretch every morning for a month",
-    "Sleep 8 hours for 7 nights in a row",
-    "Go a week without soda",
-    "Learn to do a proper push-up",
-    "Bike somewhere I'd normally drive",
-    "Drink water first thing every day for a month",
-    "Take a rest day without guilt"
+    { t: "Run a 5K", s: "Run a 5K" },
+    { t: "Try a new workout class", s: "New workout" },
+    { t: "Walk 10,000 steps for a week straight", s: "10k-step week" },
+    { t: "Stretch every morning for a month", s: "Daily stretch" },
+    { t: "Sleep 8 hours for 7 nights in a row", s: "8-hour sleeps" },
+    { t: "Go a week without soda", s: "No-soda week" },
+    { t: "Learn to do a proper push-up", s: "Real push-up" },
+    { t: "Bike somewhere I'd normally drive", s: "Bike, not drive" },
+    { t: "Drink water first thing every day for a month", s: "Morning water" },
+    { t: "Take a rest day without guilt", s: "Guilt-free rest" }
   ],
   "Creativity": [
-    "Finish a creative project",
-    "Learn 3 songs on an instrument",
-    "Write in a journal for 30 days",
-    "Take a photo every day for a month",
-    "Paint or draw something",
-    "Write a short story",
-    "Start a blog, newsletter, or zine",
-    "Make something with my hands",
-    "Learn a new recipe from scratch",
-    "Sing karaoke in public"
+    { t: "Finish a creative project", s: "Finish a project" },
+    { t: "Learn 3 songs on an instrument", s: "Learn 3 songs" },
+    { t: "Write in a journal for 30 days", s: "30-day journal" },
+    { t: "Take a photo every day for a month", s: "Daily photo" },
+    { t: "Paint or draw something", s: "Paint or draw" },
+    { t: "Write a short story", s: "Short story" },
+    { t: "Start a blog, newsletter, or zine", s: "Start a blog" },
+    { t: "Make something with my hands", s: "Make something" },
+    { t: "Learn a new recipe from scratch", s: "New recipe" },
+    { t: "Sing karaoke in public", s: "Karaoke night" }
   ],
   "Learning": [
-    "Read 12 books",
-    "Learn 100 words in a new language",
-    "Take an online course start to finish",
-    "Watch a documentary that changes my mind",
-    "Learn a card trick or party skill",
-    "Teach someone something I know",
-    "Read a book outside my usual genre",
-    "Memorize a poem",
-    "Learn basic first aid",
-    "Understand something I've always avoided"
+    { t: "Read 12 books", s: "Read 12 books" },
+    { t: "Learn 100 words in a new language", s: "100 new words" },
+    { t: "Take an online course start to finish", s: "Finish a course" },
+    { t: "Watch a documentary that changes my mind", s: "Big documentary" },
+    { t: "Learn a card trick or party skill", s: "Party trick" },
+    { t: "Teach someone something I know", s: "Teach someone" },
+    { t: "Read a book outside my usual genre", s: "New genre" },
+    { t: "Memorize a poem", s: "Memorize a poem" },
+    { t: "Learn basic first aid", s: "First aid basics" },
+    { t: "Understand something I've always avoided", s: "Crack a mystery" }
   ],
   "Connection": [
-    "Host a dinner party",
-    "Call an old friend out of the blue",
-    "Write a real letter and mail it",
-    "Meet a neighbor properly",
-    "Plan a trip with friends",
-    "Have a phone-free evening with someone",
-    "Say yes to an invite I'd normally skip",
-    "Tell someone what they mean to me",
-    "Make one new friend",
-    "Reconnect with a family member"
+    { t: "Host a dinner party", s: "Dinner party" },
+    { t: "Call an old friend out of the blue", s: "Call old friend" },
+    { t: "Write a real letter and mail it", s: "Mail a letter" },
+    { t: "Meet a neighbor properly", s: "Meet a neighbor" },
+    { t: "Plan a trip with friends", s: "Friends trip" },
+    { t: "Have a phone-free evening with someone", s: "Phone-free night" },
+    { t: "Say yes to an invite I'd normally skip", s: "Say yes" },
+    { t: "Tell someone what they mean to me", s: "Tell them" },
+    { t: "Make one new friend", s: "New friend" },
+    { t: "Reconnect with a family member", s: "Reconnect" }
   ],
   "Home & Money": [
-    "Declutter one room completely",
-    "Build a starter emergency fund",
-    "Cancel a subscription I don't use",
-    "Cook at home 5 nights in a week",
-    "Fix the thing that's been broken",
-    "Set up an automatic savings transfer",
-    "Do a no-spend week",
-    "Organize my digital photos",
-    "Make a budget I actually follow",
-    "Donate what I no longer use"
+    { t: "Declutter one room completely", s: "Declutter room" },
+    { t: "Build a starter emergency fund", s: "Emergency fund" },
+    { t: "Cancel a subscription I don't use", s: "Cancel a sub" },
+    { t: "Cook at home 5 nights in a week", s: "Cook 5 nights" },
+    { t: "Fix the thing that's been broken", s: "Fix the thing" },
+    { t: "Set up an automatic savings transfer", s: "Auto savings" },
+    { t: "Do a no-spend week", s: "No-spend week" },
+    { t: "Organize my digital photos", s: "Sort photos" },
+    { t: "Make a budget I actually follow", s: "Real budget" },
+    { t: "Donate what I no longer use", s: "Donate stuff" }
   ],
   "Joy & Rest": [
-    "See live music",
-    "Have a whole day with no plans",
-    "Go to a museum or gallery",
-    "Try a restaurant I've never been to",
-    "Watch a movie in a theater alone",
-    "Take a real vacation and unplug",
-    "Dance like nobody's watching",
-    "Spend an afternoon reading in the sun",
-    "Try a food I've always avoided",
-    "Do something purely because it's fun"
+    { t: "See live music", s: "Live music" },
+    { t: "Have a whole day with no plans", s: "No-plans day" },
+    { t: "Go to a museum or gallery", s: "Museum day" },
+    { t: "Try a restaurant I've never been to", s: "New restaurant" },
+    { t: "Watch a movie in a theater alone", s: "Solo movie" },
+    { t: "Take a real vacation and unplug", s: "Unplug trip" },
+    { t: "Dance like nobody's watching", s: "Just dance" },
+    { t: "Spend an afternoon reading in the sun", s: "Sunny reading" },
+    { t: "Try a food I've always avoided", s: "Brave bite" },
+    { t: "Do something purely because it's fun", s: "Pure fun" }
   ],
   "Growth": [
-    "Say no to something that drains me",
-    "Ask for what I want at work",
-    "Face a fear head-on",
-    "Go a month without doom-scrolling",
-    "Start therapy or journaling regularly",
-    "Forgive someone (or myself)",
-    "Break a habit I keep defending",
-    "Volunteer for a cause I care about",
-    "Set a boundary and keep it",
-    "Do the scary thing I keep postponing"
+    { t: "Say no to something that drains me", s: "Say no" },
+    { t: "Ask for what I want at work", s: "Ask at work" },
+    { t: "Face a fear head-on", s: "Face a fear" },
+    { t: "Go a month without doom-scrolling", s: "No doomscroll" },
+    { t: "Start therapy or journaling regularly", s: "Start therapy" },
+    { t: "Forgive someone (or myself)", s: "Forgive" },
+    { t: "Break a habit I keep defending", s: "Break a habit" },
+    { t: "Volunteer for a cause I care about", s: "Volunteer" },
+    { t: "Set a boundary and keep it", s: "Set a boundary" },
+    { t: "Do the scary thing I keep postponing", s: "The scary thing" }
   ]
 };
 
 const CATEGORY_ORDER = Object.keys(SUGGESTIONS);
+const MY_GOALS = 'My goals';
 
-/* Flat list of every suggestion with its category attached. */
+/* The user's own saved goals, loaded by app.js at startup. */
+let goalBank = [];
+
+/* Flat list of every suggestion — the user's own bank first. */
 function allSuggestions() {
-  return CATEGORY_ORDER.flatMap(cat =>
-    SUGGESTIONS[cat].map(text => ({ text, category: cat }))
+  const mine = goalBank.map(g => ({ text: g.text, short: g.short, category: MY_GOALS }));
+  const stock = CATEGORY_ORDER.flatMap(cat =>
+    SUGGESTIONS[cat].map(({ t, s }) => ({ text: t, short: s, category: cat }))
   );
+  return mine.concat(stock);
 }
 
 
@@ -1432,6 +1550,29 @@ async function loadCard() {
   } catch (err) {
     console.warn('Could not read saved card:', err);
     return null;
+  }
+}
+
+/* The goal bank lives outside the card so Reset never touches it. */
+const BANK_KEY = 'goalbank';
+const LS_BANK_KEY = 'newyear-bingo-goalbank';
+
+async function loadGoalBank() {
+  try {
+    if (await storageMode() === 'idb') return (await idbGet(BANK_KEY)) || [];
+    const raw = localStorage.getItem(LS_BANK_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveGoalBank(bank) {
+  try {
+    if (await storageMode() === 'idb') await idbSet(BANK_KEY, bank);
+    else localStorage.setItem(LS_BANK_KEY, JSON.stringify(bank));
+  } catch (err) {
+    console.error('Goal bank save failed:', err);
   }
 }
 
@@ -1941,12 +2082,15 @@ let activeCategory = 'All';
 let drawerTarget = null;       // tile a drawer pick should land on (null = first empty)
 let freshStamps = new Set();   // tiles that should play the stamp animation on next render
 let stampMode = false;         // stamper button armed: clicks stamp instead of edit
+let zoomMode = false;          // magnifier armed: clicks open the big close-up view
+let zoomIndex = null;          // tile currently shown in the close-up
 
 /* ---------- Card model ---------- */
 
 function makeTile(overrides = {}) {
   return {
     text: '',
+    short: '',
     category: '',
     done: false,
     doneAt: '',
@@ -1969,11 +2113,27 @@ function defaultYear() {
   return now.getMonth() >= 10 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
+/* The title is always "[year] BINGO". With no override the year follows the
+   calendar, so it rolls to the new year by itself on Jan 1. Tapping the
+   title toggles an override to next year (for planning ahead). */
+function currentYear() {
+  return new Date().getFullYear();
+}
+
+function displayYear() {
+  return card.yearOverride || currentYear();
+}
+
+function cardTitle() {
+  return `${displayYear()} BINGO`;
+}
+
 function createCard(size = 5) {
   const tiles = Array.from({ length: size * size }, () => makeTile());
   const c = {
-    version: 2,
+    version: 3,
     title: `${defaultYear()} BINGO`,
+    yearOverride: defaultYear() !== new Date().getFullYear() ? defaultYear() : null,
     subtitle: '',
     size,
     tiles,
@@ -2155,10 +2315,18 @@ function render() {
       el.appendChild(cat);
     }
 
+    // Full text plus a short form; CSS picks one by screen and grid size.
+    const fullLabel = tile.free ? 'FREE' : (tile.text || '+ Add a goal');
+    const shortLabel = tile.free ? 'FREE'
+      : tile.text ? (tile.short || autoShort(tile.text)) : '+ Add';
     const text = document.createElement('span');
-    text.className = 'tile-text';
-    text.textContent = tile.free ? 'FREE' : (tile.text || '+ Add a goal');
+    text.className = 'tile-text tile-text-full';
+    text.textContent = fullLabel;
     el.appendChild(text);
+    const shortEl = document.createElement('span');
+    shortEl.className = 'tile-text tile-text-short';
+    shortEl.textContent = shortLabel;
+    el.appendChild(shortEl);
 
     if (tile.doneAt) {
       const d = document.createElement('span');
@@ -2328,6 +2496,36 @@ function maybeAutoCollapseSetup() {
   toast('Card is full — setup tucked away 👌');
 }
 
+/* ---------- Short goal labels ---------- */
+
+/* Word-boundary shortening for custom goals — never an ellipsis, and never
+   ending on a dangling little word like "to" or "the". */
+const SHORT_STOPWORDS = new Set([
+  'to', 'the', 'a', 'an', 'of', 'for', 'my', 'in', 'on', 'at',
+  'with', 'and', 'or', 'this', 'that', 'be', 'is'
+]);
+
+function autoShort(text) {
+  const clean = String(text).trim();
+  if (clean.length <= 22) return clean;
+  const words = clean.split(/\s+/);
+  const kept = [];
+  for (const w of words) {
+    if (kept.join(' ').length + w.length + 1 > 21 && kept.length) break;
+    kept.push(w);
+  }
+  while (kept.length > 1 && SHORT_STOPWORDS.has(kept[kept.length - 1].toLowerCase())) {
+    kept.pop();
+  }
+  return kept.join(' ');
+}
+
+/* Curated short form when the goal came from the library, else automatic. */
+function lookupShort(text) {
+  const hit = allSuggestions().find(s => s.text.toLowerCase() === text.toLowerCase());
+  return hit ? hit.short : autoShort(text);
+}
+
 /* ---------- Stamping ---------- */
 
 /* On mouse machines the armed cursor is a life-size dauber element that
@@ -2367,11 +2565,61 @@ function setStampMode(on) {
       $('#dauber').hidden = true;
     }
   }
-  if (on) toast('Stamp mode! Tap every goal you finished 🔴');
+  if (on) {
+    if (zoomMode) setZoomMode(false);
+    toast('Stamp mode! Tap every goal you finished 🔴');
+  }
+}
+
+/* ---------- Magnifier ---------- */
+
+function setZoomMode(on) {
+  zoomMode = on;
+  $('#btnZoom').classList.toggle('active', on);
+  $('#btnZoom').setAttribute('aria-pressed', String(on));
+  if (on) {
+    if (stampMode) setStampMode(false);
+    toast('Magnifier on — tap any goal to read it big 🔍');
+  }
+}
+
+function openZoom(i) {
+  zoomIndex = i;
+  refreshZoom();
+  $('#zoomModal').hidden = false;
+}
+
+/* Fills the close-up from the tile, so stamping inside it updates live. */
+function refreshZoom() {
+  if (zoomIndex === null) return;
+  const tile = card.tiles[zoomIndex];
+  $('#zoomText').textContent = tile.text;
+  $('#zoomCat').textContent = tile.category || '';
+  $('#zoomDate').textContent = tile.done
+    ? `Stamped ✓${tile.doneAt ? ' · ' + prettyDate(tile.doneAt) : ''}`
+    : 'Not stamped yet';
+  const img = $('#zoomPhoto');
+  if (tile.photo) {
+    img.src = tile.photo;
+    img.hidden = false;
+  } else {
+    img.removeAttribute('src');
+    img.hidden = true;
+  }
+  $('#btnZoomStamp').textContent = tile.done ? 'Un-stamp' : 'Stamp it!';
+}
+
+function closeZoom() {
+  $('#zoomModal').hidden = true;
+  zoomIndex = null;
 }
 
 function handleTileClick(i) {
   const tile = card.tiles[i];
+  if (zoomMode && tile.text && !tile.free) {
+    openZoom(i);
+    return;
+  }
   if (tile.free) {
     toast('That one is free — it counts automatically 🎁');
     return;
@@ -2387,6 +2635,25 @@ function handleTileClick(i) {
   toggleStamp(i);
 }
 
+/* On touch screens a tap conjures the dauber over the tile it stamped. */
+function touchDauber(i) {
+  if (FINE_POINTER) return;
+  if (!$('#zoomModal').hidden) return;      // close-up view covers the tile
+  const el = document.querySelector(`.tile[data-index="${i}"]`);
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const d = $('#dauber');
+  d.style.transform = `translate(${r.left + r.width / 2 - DAUBER_TIP.x}px, ${r.top + r.height / 2 - DAUBER_TIP.y}px)`;
+  d.hidden = false;
+  d.classList.remove('touch-press');
+  void d.offsetWidth;
+  d.classList.add('touch-press');
+  setTimeout(() => {
+    d.hidden = true;
+    d.classList.remove('touch-press');
+  }, 620);
+}
+
 function toggleStamp(i) {
   const tile = card.tiles[i];
   tile.done = !tile.done;
@@ -2394,6 +2661,7 @@ function toggleStamp(i) {
     tile.doneAt = tile.doneAt || todayISO();
     freshStamps.add(i);
     if (stampMode) pressDauber();
+    touchDauber(i);
     persist();
     render();
     return;
@@ -2450,6 +2718,7 @@ function commitEditor() {
   const tile = card.tiles[activeIndex];
   const wasDone = tile.done;
   tile.text = $('#tileText').value.trim();
+  tile.short = tile.text ? lookupShort(tile.text) : '';
   tile.category = $('#tileCategory').value;
   tile.done = $('#tileDone').checked;
   tile.doneAt = tile.done ? $('#tileDate').value : '';
@@ -2560,13 +2829,15 @@ function wireTileDrop(el, index) {
 function buildCategorySelect() {
   const sel = $('#tileCategory');
   sel.innerHTML = '<option value="">No category</option>' +
+    `<option value="${MY_GOALS}">${MY_GOALS}</option>` +
     CATEGORY_ORDER.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
 function buildCategoryChips() {
   const wrap = $('#suggestCats');
   wrap.innerHTML = '';
-  ['All', ...CATEGORY_ORDER].forEach(cat => {
+  const cats = ['All', ...(goalBank.length ? [MY_GOALS] : []), ...CATEGORY_ORDER];
+  cats.forEach(cat => {
     const b = document.createElement('button');
     b.className = 'chip' + (cat === activeCategory ? ' active' : '');
     b.textContent = cat;
@@ -2638,12 +2909,42 @@ function placeSuggestion(s) {
     toast('Every tile is filled — clear one first');
     return;
   }
-  card.tiles[i] = makeTile({ text: s.text, category: s.category });
+  card.tiles[i] = makeTile({ text: s.text, short: s.short, category: s.category });
   persist();
   render();
   renderSuggestions();
   toast(`Added "${s.text}"`);
   maybeAutoCollapseSetup();
+}
+
+/* ---------- Custom goals & the goal bank ---------- */
+
+async function addCustomGoal() {
+  const text = $('#customGoalText').value.trim();
+  if (!text) {
+    toast('Type your goal first');
+    return;
+  }
+  // Remember it for future cards (once).
+  if (!goalBank.some(g => g.text.toLowerCase() === text.toLowerCase())) {
+    goalBank.push({ text, short: autoShort(text) });
+    await saveGoalBank(goalBank);
+    buildCategoryChips();
+  }
+  // And put it on the card now, if there's room.
+  const i = firstEmptyIndex();
+  if (i === -1) {
+    toast('Saved to My goals — the card is full');
+  } else {
+    card.tiles[i] = makeTile({ text, short: autoShort(text), category: MY_GOALS });
+    persist();
+    render();
+    toast(`Added "${text}"`);
+    maybeAutoCollapseSetup();
+  }
+  $('#customGoalText').value = '';
+  $('#goalModal').hidden = true;
+  renderSuggestions();
 }
 
 /* Unused suggestions in random order. */
@@ -2668,7 +2969,7 @@ function fillEmptyTiles() {
   for (const i of empties) {
     const s = pool.pop();
     if (!s) break;
-    card.tiles[i] = makeTile({ text: s.text, category: s.category });
+    card.tiles[i] = makeTile({ text: s.text, short: s.short, category: s.category });
     filled++;
   }
   persist();
@@ -2784,7 +3085,7 @@ function backup() {
   a.download = `${slug(card.title)}-backup.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast('Backup saved — photos included');
+  toast('Saved — photos included');
 }
 
 function restore(file) {
@@ -2819,7 +3120,8 @@ function toast(msg) {
 }
 
 function syncHeaderInputs() {
-  $('#cardTitle').value = card.title;
+  card.title = cardTitle();
+  $('#cardTitle').textContent = card.title;
   $('#cardSubtitle').value = card.subtitle || '';
 }
 
@@ -2891,13 +3193,23 @@ function paintConfetti() {
 /* ---------- Wiring ---------- */
 
 function wireEvents() {
-  $('#cardTitle').addEventListener('input', e => {
-    card.title = e.target.value;
+  // The title is locked to "[year] BINGO" — tapping flips between this
+  // year and next, no keyboard involved.
+  $('#cardTitle').addEventListener('click', () => {
+    card.yearOverride = displayYear() === currentYear() ? currentYear() + 1 : null;
+    syncHeaderInputs();
     persist();
+    toast(card.yearOverride
+      ? `Planning ahead: ${displayYear()} 🎉`
+      : `Back to this year: ${displayYear()}`);
   });
   $('#cardSubtitle').addEventListener('input', e => {
     card.subtitle = e.target.value;
     persist();
+  });
+  // "Done"/Enter on the name field closes the phone keyboard.
+  $('#cardSubtitle').addEventListener('keydown', e => {
+    if (e.key === 'Enter') e.target.blur();
   });
 
   $('#setupHead').addEventListener('click', () => {
@@ -2912,6 +3224,38 @@ function wireEvents() {
   });
 
   $('#btnStampMode').addEventListener('click', () => setStampMode(!stampMode));
+  $('#btnZoom').addEventListener('click', () => setZoomMode(!zoomMode));
+
+  // Magnifier close-up
+  $('#btnCloseZoom').addEventListener('click', closeZoom);
+  $('#zoomModal').addEventListener('click', e => {
+    if (e.target === $('#zoomModal')) closeZoom();
+  });
+  $('#btnZoomStamp').addEventListener('click', () => {
+    if (zoomIndex === null) return;
+    toggleStamp(zoomIndex);
+    refreshZoom();
+  });
+  $('#btnZoomEdit').addEventListener('click', () => {
+    const i = zoomIndex;
+    closeZoom();
+    if (i !== null) openEditor(i);
+  });
+
+  // Custom goal
+  $('#btnCustomGoal').addEventListener('click', () => {
+    $('#goalModal').hidden = false;
+    setTimeout(() => $('#customGoalText').focus({ preventScroll: true }), 30);
+  });
+  $('#btnCloseGoal').addEventListener('click', () => { $('#goalModal').hidden = true; });
+  $('#btnCancelGoal').addEventListener('click', () => { $('#goalModal').hidden = true; });
+  $('#goalModal').addEventListener('click', e => {
+    if (e.target === $('#goalModal')) $('#goalModal').hidden = true;
+  });
+  $('#btnAddGoal').addEventListener('click', addCustomGoal);
+  $('#customGoalText').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addCustomGoal(); }
+  });
 
   $('#btnSuggestions').addEventListener('click', () => {
     drawerTarget = null;
@@ -3003,10 +3347,13 @@ function wireEvents() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (!$('#askModal').hidden) $('#askCancel').click();
+    else if (!$('#zoomModal').hidden) closeZoom();
+    else if (!$('#goalModal').hidden) $('#goalModal').hidden = true;
     else if (!$('#shareModal').hidden) closeShare();
     else if ($('#suggestPanel').classList.contains('open')) openDrawer(false);
     else if (!$('#tileModal').hidden) closeEditor();
     else if (stampMode) setStampMode(false);
+    else if (zoomMode) setZoomMode(false);
   });
 
   window.addEventListener('beforeunload', () => flushSave());
@@ -3023,6 +3370,7 @@ function onStorageError(err) {
 
 async function init() {
   paintConfetti();
+  goalBank = await loadGoalBank();
   buildCategorySelect();
   buildCategoryChips();
   const saved = await loadCard();
@@ -3030,11 +3378,29 @@ async function init() {
   card.tiles = card.tiles.map(t => makeTile(t));
   // The subtitle is now the owner's name; clear the old stock tagline.
   if (card.subtitle === 'A year worth checking off') card.subtitle = '';
+  // Older cards: carry a hand-typed year forward as an override, and give
+  // every goal its short label.
+  if (card.yearOverride === undefined) {
+    const m = /(\d{4})/.exec(card.title || '');
+    const y = m ? Number(m[1]) : null;
+    card.yearOverride = y && y !== currentYear() ? y : null;
+  }
+  card.tiles.forEach(t => {
+    if (t.text && !t.free && !t.short) t.short = lookupShort(t.text);
+  });
   syncHeaderInputs();
   syncPanels();
   render();
   wireEvents();
   if (!saved) persist();
+
+  // If the page sits open across midnight on Dec 31, the title follows.
+  setInterval(() => {
+    if (card.title !== cardTitle()) {
+      syncHeaderInputs();
+      persist();
+    }
+  }, 60000);
 }
 
 init();

@@ -11,12 +11,15 @@ let activeCategory = 'All';
 let drawerTarget = null;       // tile a drawer pick should land on (null = first empty)
 let freshStamps = new Set();   // tiles that should play the stamp animation on next render
 let stampMode = false;         // stamper button armed: clicks stamp instead of edit
+let zoomMode = false;          // magnifier armed: clicks open the big close-up view
+let zoomIndex = null;          // tile currently shown in the close-up
 
 /* ---------- Card model ---------- */
 
 function makeTile(overrides = {}) {
   return {
     text: '',
+    short: '',
     category: '',
     done: false,
     doneAt: '',
@@ -39,11 +42,27 @@ function defaultYear() {
   return now.getMonth() >= 10 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
+/* The title is always "[year] BINGO". With no override the year follows the
+   calendar, so it rolls to the new year by itself on Jan 1. Tapping the
+   title toggles an override to next year (for planning ahead). */
+function currentYear() {
+  return new Date().getFullYear();
+}
+
+function displayYear() {
+  return card.yearOverride || currentYear();
+}
+
+function cardTitle() {
+  return `${displayYear()} BINGO`;
+}
+
 function createCard(size = 5) {
   const tiles = Array.from({ length: size * size }, () => makeTile());
   const c = {
-    version: 2,
+    version: 3,
     title: `${defaultYear()} BINGO`,
+    yearOverride: defaultYear() !== new Date().getFullYear() ? defaultYear() : null,
     subtitle: '',
     size,
     tiles,
@@ -225,10 +244,18 @@ function render() {
       el.appendChild(cat);
     }
 
+    // Full text plus a short form; CSS picks one by screen and grid size.
+    const fullLabel = tile.free ? 'FREE' : (tile.text || '+ Add a goal');
+    const shortLabel = tile.free ? 'FREE'
+      : tile.text ? (tile.short || autoShort(tile.text)) : '+ Add';
     const text = document.createElement('span');
-    text.className = 'tile-text';
-    text.textContent = tile.free ? 'FREE' : (tile.text || '+ Add a goal');
+    text.className = 'tile-text tile-text-full';
+    text.textContent = fullLabel;
     el.appendChild(text);
+    const shortEl = document.createElement('span');
+    shortEl.className = 'tile-text tile-text-short';
+    shortEl.textContent = shortLabel;
+    el.appendChild(shortEl);
 
     if (tile.doneAt) {
       const d = document.createElement('span');
@@ -398,6 +425,36 @@ function maybeAutoCollapseSetup() {
   toast('Card is full — setup tucked away 👌');
 }
 
+/* ---------- Short goal labels ---------- */
+
+/* Word-boundary shortening for custom goals — never an ellipsis, and never
+   ending on a dangling little word like "to" or "the". */
+const SHORT_STOPWORDS = new Set([
+  'to', 'the', 'a', 'an', 'of', 'for', 'my', 'in', 'on', 'at',
+  'with', 'and', 'or', 'this', 'that', 'be', 'is'
+]);
+
+function autoShort(text) {
+  const clean = String(text).trim();
+  if (clean.length <= 22) return clean;
+  const words = clean.split(/\s+/);
+  const kept = [];
+  for (const w of words) {
+    if (kept.join(' ').length + w.length + 1 > 21 && kept.length) break;
+    kept.push(w);
+  }
+  while (kept.length > 1 && SHORT_STOPWORDS.has(kept[kept.length - 1].toLowerCase())) {
+    kept.pop();
+  }
+  return kept.join(' ');
+}
+
+/* Curated short form when the goal came from the library, else automatic. */
+function lookupShort(text) {
+  const hit = allSuggestions().find(s => s.text.toLowerCase() === text.toLowerCase());
+  return hit ? hit.short : autoShort(text);
+}
+
 /* ---------- Stamping ---------- */
 
 /* On mouse machines the armed cursor is a life-size dauber element that
@@ -437,11 +494,61 @@ function setStampMode(on) {
       $('#dauber').hidden = true;
     }
   }
-  if (on) toast('Stamp mode! Tap every goal you finished 🔴');
+  if (on) {
+    if (zoomMode) setZoomMode(false);
+    toast('Stamp mode! Tap every goal you finished 🔴');
+  }
+}
+
+/* ---------- Magnifier ---------- */
+
+function setZoomMode(on) {
+  zoomMode = on;
+  $('#btnZoom').classList.toggle('active', on);
+  $('#btnZoom').setAttribute('aria-pressed', String(on));
+  if (on) {
+    if (stampMode) setStampMode(false);
+    toast('Magnifier on — tap any goal to read it big 🔍');
+  }
+}
+
+function openZoom(i) {
+  zoomIndex = i;
+  refreshZoom();
+  $('#zoomModal').hidden = false;
+}
+
+/* Fills the close-up from the tile, so stamping inside it updates live. */
+function refreshZoom() {
+  if (zoomIndex === null) return;
+  const tile = card.tiles[zoomIndex];
+  $('#zoomText').textContent = tile.text;
+  $('#zoomCat').textContent = tile.category || '';
+  $('#zoomDate').textContent = tile.done
+    ? `Stamped ✓${tile.doneAt ? ' · ' + prettyDate(tile.doneAt) : ''}`
+    : 'Not stamped yet';
+  const img = $('#zoomPhoto');
+  if (tile.photo) {
+    img.src = tile.photo;
+    img.hidden = false;
+  } else {
+    img.removeAttribute('src');
+    img.hidden = true;
+  }
+  $('#btnZoomStamp').textContent = tile.done ? 'Un-stamp' : 'Stamp it!';
+}
+
+function closeZoom() {
+  $('#zoomModal').hidden = true;
+  zoomIndex = null;
 }
 
 function handleTileClick(i) {
   const tile = card.tiles[i];
+  if (zoomMode && tile.text && !tile.free) {
+    openZoom(i);
+    return;
+  }
   if (tile.free) {
     toast('That one is free — it counts automatically 🎁');
     return;
@@ -457,6 +564,25 @@ function handleTileClick(i) {
   toggleStamp(i);
 }
 
+/* On touch screens a tap conjures the dauber over the tile it stamped. */
+function touchDauber(i) {
+  if (FINE_POINTER) return;
+  if (!$('#zoomModal').hidden) return;      // close-up view covers the tile
+  const el = document.querySelector(`.tile[data-index="${i}"]`);
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const d = $('#dauber');
+  d.style.transform = `translate(${r.left + r.width / 2 - DAUBER_TIP.x}px, ${r.top + r.height / 2 - DAUBER_TIP.y}px)`;
+  d.hidden = false;
+  d.classList.remove('touch-press');
+  void d.offsetWidth;
+  d.classList.add('touch-press');
+  setTimeout(() => {
+    d.hidden = true;
+    d.classList.remove('touch-press');
+  }, 620);
+}
+
 function toggleStamp(i) {
   const tile = card.tiles[i];
   tile.done = !tile.done;
@@ -464,6 +590,7 @@ function toggleStamp(i) {
     tile.doneAt = tile.doneAt || todayISO();
     freshStamps.add(i);
     if (stampMode) pressDauber();
+    touchDauber(i);
     persist();
     render();
     return;
@@ -520,6 +647,7 @@ function commitEditor() {
   const tile = card.tiles[activeIndex];
   const wasDone = tile.done;
   tile.text = $('#tileText').value.trim();
+  tile.short = tile.text ? lookupShort(tile.text) : '';
   tile.category = $('#tileCategory').value;
   tile.done = $('#tileDone').checked;
   tile.doneAt = tile.done ? $('#tileDate').value : '';
@@ -630,13 +758,15 @@ function wireTileDrop(el, index) {
 function buildCategorySelect() {
   const sel = $('#tileCategory');
   sel.innerHTML = '<option value="">No category</option>' +
+    `<option value="${MY_GOALS}">${MY_GOALS}</option>` +
     CATEGORY_ORDER.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
 function buildCategoryChips() {
   const wrap = $('#suggestCats');
   wrap.innerHTML = '';
-  ['All', ...CATEGORY_ORDER].forEach(cat => {
+  const cats = ['All', ...(goalBank.length ? [MY_GOALS] : []), ...CATEGORY_ORDER];
+  cats.forEach(cat => {
     const b = document.createElement('button');
     b.className = 'chip' + (cat === activeCategory ? ' active' : '');
     b.textContent = cat;
@@ -708,12 +838,42 @@ function placeSuggestion(s) {
     toast('Every tile is filled — clear one first');
     return;
   }
-  card.tiles[i] = makeTile({ text: s.text, category: s.category });
+  card.tiles[i] = makeTile({ text: s.text, short: s.short, category: s.category });
   persist();
   render();
   renderSuggestions();
   toast(`Added "${s.text}"`);
   maybeAutoCollapseSetup();
+}
+
+/* ---------- Custom goals & the goal bank ---------- */
+
+async function addCustomGoal() {
+  const text = $('#customGoalText').value.trim();
+  if (!text) {
+    toast('Type your goal first');
+    return;
+  }
+  // Remember it for future cards (once).
+  if (!goalBank.some(g => g.text.toLowerCase() === text.toLowerCase())) {
+    goalBank.push({ text, short: autoShort(text) });
+    await saveGoalBank(goalBank);
+    buildCategoryChips();
+  }
+  // And put it on the card now, if there's room.
+  const i = firstEmptyIndex();
+  if (i === -1) {
+    toast('Saved to My goals — the card is full');
+  } else {
+    card.tiles[i] = makeTile({ text, short: autoShort(text), category: MY_GOALS });
+    persist();
+    render();
+    toast(`Added "${text}"`);
+    maybeAutoCollapseSetup();
+  }
+  $('#customGoalText').value = '';
+  $('#goalModal').hidden = true;
+  renderSuggestions();
 }
 
 /* Unused suggestions in random order. */
@@ -738,7 +898,7 @@ function fillEmptyTiles() {
   for (const i of empties) {
     const s = pool.pop();
     if (!s) break;
-    card.tiles[i] = makeTile({ text: s.text, category: s.category });
+    card.tiles[i] = makeTile({ text: s.text, short: s.short, category: s.category });
     filled++;
   }
   persist();
@@ -854,7 +1014,7 @@ function backup() {
   a.download = `${slug(card.title)}-backup.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast('Backup saved — photos included');
+  toast('Saved — photos included');
 }
 
 function restore(file) {
@@ -889,7 +1049,8 @@ function toast(msg) {
 }
 
 function syncHeaderInputs() {
-  $('#cardTitle').value = card.title;
+  card.title = cardTitle();
+  $('#cardTitle').textContent = card.title;
   $('#cardSubtitle').value = card.subtitle || '';
 }
 
@@ -961,13 +1122,23 @@ function paintConfetti() {
 /* ---------- Wiring ---------- */
 
 function wireEvents() {
-  $('#cardTitle').addEventListener('input', e => {
-    card.title = e.target.value;
+  // The title is locked to "[year] BINGO" — tapping flips between this
+  // year and next, no keyboard involved.
+  $('#cardTitle').addEventListener('click', () => {
+    card.yearOverride = displayYear() === currentYear() ? currentYear() + 1 : null;
+    syncHeaderInputs();
     persist();
+    toast(card.yearOverride
+      ? `Planning ahead: ${displayYear()} 🎉`
+      : `Back to this year: ${displayYear()}`);
   });
   $('#cardSubtitle').addEventListener('input', e => {
     card.subtitle = e.target.value;
     persist();
+  });
+  // "Done"/Enter on the name field closes the phone keyboard.
+  $('#cardSubtitle').addEventListener('keydown', e => {
+    if (e.key === 'Enter') e.target.blur();
   });
 
   $('#setupHead').addEventListener('click', () => {
@@ -982,6 +1153,38 @@ function wireEvents() {
   });
 
   $('#btnStampMode').addEventListener('click', () => setStampMode(!stampMode));
+  $('#btnZoom').addEventListener('click', () => setZoomMode(!zoomMode));
+
+  // Magnifier close-up
+  $('#btnCloseZoom').addEventListener('click', closeZoom);
+  $('#zoomModal').addEventListener('click', e => {
+    if (e.target === $('#zoomModal')) closeZoom();
+  });
+  $('#btnZoomStamp').addEventListener('click', () => {
+    if (zoomIndex === null) return;
+    toggleStamp(zoomIndex);
+    refreshZoom();
+  });
+  $('#btnZoomEdit').addEventListener('click', () => {
+    const i = zoomIndex;
+    closeZoom();
+    if (i !== null) openEditor(i);
+  });
+
+  // Custom goal
+  $('#btnCustomGoal').addEventListener('click', () => {
+    $('#goalModal').hidden = false;
+    setTimeout(() => $('#customGoalText').focus({ preventScroll: true }), 30);
+  });
+  $('#btnCloseGoal').addEventListener('click', () => { $('#goalModal').hidden = true; });
+  $('#btnCancelGoal').addEventListener('click', () => { $('#goalModal').hidden = true; });
+  $('#goalModal').addEventListener('click', e => {
+    if (e.target === $('#goalModal')) $('#goalModal').hidden = true;
+  });
+  $('#btnAddGoal').addEventListener('click', addCustomGoal);
+  $('#customGoalText').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addCustomGoal(); }
+  });
 
   $('#btnSuggestions').addEventListener('click', () => {
     drawerTarget = null;
@@ -1073,10 +1276,13 @@ function wireEvents() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (!$('#askModal').hidden) $('#askCancel').click();
+    else if (!$('#zoomModal').hidden) closeZoom();
+    else if (!$('#goalModal').hidden) $('#goalModal').hidden = true;
     else if (!$('#shareModal').hidden) closeShare();
     else if ($('#suggestPanel').classList.contains('open')) openDrawer(false);
     else if (!$('#tileModal').hidden) closeEditor();
     else if (stampMode) setStampMode(false);
+    else if (zoomMode) setZoomMode(false);
   });
 
   window.addEventListener('beforeunload', () => flushSave());
@@ -1093,6 +1299,7 @@ function onStorageError(err) {
 
 async function init() {
   paintConfetti();
+  goalBank = await loadGoalBank();
   buildCategorySelect();
   buildCategoryChips();
   const saved = await loadCard();
@@ -1100,11 +1307,29 @@ async function init() {
   card.tiles = card.tiles.map(t => makeTile(t));
   // The subtitle is now the owner's name; clear the old stock tagline.
   if (card.subtitle === 'A year worth checking off') card.subtitle = '';
+  // Older cards: carry a hand-typed year forward as an override, and give
+  // every goal its short label.
+  if (card.yearOverride === undefined) {
+    const m = /(\d{4})/.exec(card.title || '');
+    const y = m ? Number(m[1]) : null;
+    card.yearOverride = y && y !== currentYear() ? y : null;
+  }
+  card.tiles.forEach(t => {
+    if (t.text && !t.free && !t.short) t.short = lookupShort(t.text);
+  });
   syncHeaderInputs();
   syncPanels();
   render();
   wireEvents();
   if (!saved) persist();
+
+  // If the page sits open across midnight on Dec 31, the title follows.
+  setInterval(() => {
+    if (card.title !== cardTitle()) {
+      syncHeaderInputs();
+      persist();
+    }
+  }, 60000);
 }
 
 init();

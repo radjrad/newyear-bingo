@@ -78,6 +78,29 @@ async function loadCard() {
   }
 }
 
+/* The goal bank lives outside the card so Reset never touches it. */
+const BANK_KEY = 'goalbank';
+const LS_BANK_KEY = 'newyear-bingo-goalbank';
+
+async function loadGoalBank() {
+  try {
+    if (await storageMode() === 'idb') return (await idbGet(BANK_KEY)) || [];
+    const raw = localStorage.getItem(LS_BANK_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveGoalBank(bank) {
+  try {
+    if (await storageMode() === 'idb') await idbSet(BANK_KEY, bank);
+    else localStorage.setItem(LS_BANK_KEY, JSON.stringify(bank));
+  } catch (err) {
+    console.error('Goal bank save failed:', err);
+  }
+}
+
 /* Saves are debounced: tile edits fire rapidly while typing a note. */
 let _saveTimer = null;
 let _pendingCard = null;
