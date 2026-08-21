@@ -19,7 +19,7 @@
     <span class="plaque-mark">🎉</span>
     <div class="plaque-fields">
       <input id="cardTitle" class="title-input" maxlength="26" placeholder="2026 BINGO" aria-label="Card title">
-      <input id="cardSubtitle" class="subtitle-input" maxlength="52" placeholder="Add a subtitle…" aria-label="Card subtitle">
+      <input id="cardSubtitle" class="subtitle-input" maxlength="52" placeholder="Name" aria-label="Whose card this is">
     </div>
   </div>
 
@@ -72,6 +72,7 @@
     <span class="hint-mouse">Click a tile to edit it, add a photo, or stamp it done. Drag a photo straight onto a tile to attach it.</span>
     <span class="hint-touch">Tap a tile to edit it, add a photo, or stamp it done.</span>
   </p>
+  <p class="credit">Created by: Jared B. Fries, 2026.</p>
 </main>
 
 <!-- Suggestions drawer -->
@@ -104,7 +105,7 @@
       <button id="btnTileRandom" type="button" class="btn btn-purple btn-small">🎲 Random</button>
     </div>
 
-    <label class="field">
+    <label class="field" id="catField">
       <span>Category</span>
       <select id="tileCategory"></select>
     </label>
@@ -131,11 +132,6 @@
     <label class="field" id="dateField">
       <span>Date completed</span>
       <input id="tileDate" type="date">
-    </label>
-
-    <label class="field">
-      <span>Note</span>
-      <textarea id="tileNote" rows="2" maxlength="140" placeholder="How did it go?"></textarea>
     </label>
 
     <div class="modal-actions">
